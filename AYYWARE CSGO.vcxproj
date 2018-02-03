@@ -142,12 +142,10 @@
     <ClInclude Include="EngineClient.h" />
     <ClInclude Include="Entities.h" />
     <ClInclude Include="ESP.h" />
-    <ClInclude Include="game.h" />
     <ClInclude Include="Glowmanager.h" />
     <ClInclude Include="GUI.h" />
     <ClInclude Include="Hacks.h" />
     <ClInclude Include="hitmarker.h" />
-    <ClInclude Include="newglobals.h" />
     <ClInclude Include="NightMode.h" />
     <ClInclude Include="Resolver.h" />
     <ClInclude Include="winwindef.h" />
@@ -185,7 +183,6 @@
     <ClCompile Include="DLLMain.cpp" />
     <ClCompile Include="Dumping.cpp" />
     <ClCompile Include="ESP.cpp" />
-    <ClCompile Include="game.cpp" />
     <ClCompile Include="GUI.cpp" />
     <ClCompile Include="Hacks.cpp" />
     <ClCompile Include="NightMode.cpp" />

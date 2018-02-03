@@ -11,7 +11,6 @@ class CEsp : public CHack
 public:
 	void Init();
 	void Draw();
-	
 	void Move(CUserCmd *pCmd, bool &bSendPacket);
 private:
 
@@ -28,7 +27,7 @@ private:
 	// Get player info
 	Color GetPlayerColor(IClientEntity* pEntity);
 	bool GetBox(IClientEntity* pEntity, ESPBox &result);
-	void direction_arrow(const Vector & origin);
+
 	// Draw shit about player
 	void SpecList();
 	void DrawGlow(IClientEntity *pEntity, int r, int g, int b, int a);
