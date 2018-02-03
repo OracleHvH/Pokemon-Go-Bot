@@ -196,7 +196,7 @@ void ClanTag()
 
 	}
 }
-
+#include "game.h"
 bool __stdcall CreateMoveClient_Hooked(/*void* self, int edx,*/ float frametime, CUserCmd* pCmd)
 {
 	if (!pCmd->command_number)
@@ -229,7 +229,10 @@ bool __stdcall CreateMoveClient_Hooked(/*void* self, int edx,*/ float frametime,
 		if (Interfaces::Engine->IsConnected() && Interfaces::Engine->IsInGame() && pLocal && pLocal->IsAlive())
 			Hacks::MoveHacks(pCmd, bSendPacket);
 
-
+		if (Interfaces::Engine->IsConnected() && Interfaces::Engine->IsInGame() && hackManager.pLocal())
+		{
+			game::globals.UserCmd = pCmd;
+		}
 		if (Menu::Window.VisualsTab.NightSky.GetState())
 		{
 			ConVar* sky = Interfaces::CVar->FindVar("sv_skyname");
