@@ -41,6 +41,7 @@ namespace Render
 		extern DWORD WaterMark;
 		extern DWORD Untitled1;
 		extern DWORD ESP;
+		extern DWORD ESPSmall;
 		extern DWORD Clock;
 		extern DWORD LBY;
 		extern DWORD Slider;

@@ -22,6 +22,7 @@ namespace Render
 		DWORD WaterMark;
 		DWORD Slider;
 		DWORD ESP;
+		DWORD ESPSmall;
 		DWORD Clock;
 		DWORD LBY;
 		DWORD MenuText;
@@ -54,6 +55,7 @@ void Render::Initialise()
 	Fonts::Menu     = Interfaces::Surface->FontCreate();
 	Fonts::MenuBold = Interfaces::Surface->FontCreate();
 	Fonts::ESP = Interfaces::Surface->FontCreate();
+	Fonts::ESPSmall = Interfaces::Surface->FontCreate();
 	Fonts::MenuText = Interfaces::Surface->FontCreate();
 	Fonts::Untitled1 = Interfaces::Surface->FontCreate();
 	Fonts::Tabs = Interfaces::Surface->FontCreate();
@@ -70,7 +72,8 @@ void Render::Initialise()
 	Interfaces::Surface->SetFontGlyphSet(Fonts::Untitled1, "tabs-monarch", 55, 500, 0, 0, FONTFLAG_ANTIALIAS | FONTFLAG_OUTLINE);
 	Interfaces::Surface->SetFontGlyphSet(Fonts::Tabs, "Impact", 30, 500, 0, 0, FONTFLAG_DROPSHADOW | FONTFLAG_ANTIALIAS);
 	// Interfaces::Surface->SetFontGlyphSet(Fonts::MenuBold, "Visitor TT2 BRK", 14, 550, 0, 0, FONTFLAG_ANTIALIAS);
-	Interfaces::Surface->SetFontGlyphSet(Fonts::ESP, "Calibri", 14, 500, 0, 0, FONTFLAG_ANTIALIAS | FONTFLAG_DROPSHADOW);
+	Interfaces::Surface->SetFontGlyphSet(Fonts::ESP, "Arial", 11, 700, 0, 0, FONTFLAG_OUTLINE);
+	Interfaces::Surface->SetFontGlyphSet(Fonts::ESPSmall, "Verdana", 11, 230, 0, 0, FONTFLAG_OUTLINE);
 	Interfaces::Surface->SetFontGlyphSet(Fonts::MenuText, "Calibri", 16, 500, 0, 0, FONTFLAG_ANTIALIAS);
 	Interfaces::Surface->SetFontGlyphSet(Fonts::LBY, "Verdana", 20, 800, 0, 0, FONTFLAG_OUTLINE | FONTFLAG_ANTIALIAS);
 

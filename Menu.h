@@ -51,6 +51,7 @@ public:
 
 	CGroupBox AccuracyGroup;
 	CCheckBox AccuracyRecoil;
+	CCheckBox Nospread;
 	CCheckBox AccuracyAutoWall;
 	CSlider AccuracyMinimumDamage;
 	CCheckBox AccuracyAutoStop;

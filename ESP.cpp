@@ -462,32 +462,71 @@ void CEsp::Armor(ESPBox box, IClientEntity* pEntity)
 		}
 	}
 }
-
-// Draw a health bar. For Tf2 when a bar is bigger than max health a second bar is displayed
-void CEsp::DrawHealth(ESPBox box, IClientEntity* pEntity)
+RECT get_text_size(const char* _Input, int font)
 {
-	float health = pEntity->GetHealth();
+	int apple = 0;
+	char Buffer[2048] = { '\0' };
+	va_list Args;
+	va_start(Args, _Input);
+	vsprintf_s(Buffer, _Input, Args);
+	va_end(Args);
+	size_t Size = strlen(Buffer) + 1;
+	wchar_t* WideBuffer = new wchar_t[Size];
+	mbstowcs_s(0, WideBuffer, Size, Buffer, Size - 1);
+	int Width = 0, Height = 0;
 
-	if (health > 100)
-		health = 100;
+	Interfaces::Surface->GetTextSize(font, WideBuffer, Width, Height);
 
-	int colors[2] = { 255 - (health * 2.55), health * 2.55 };
+	RECT outcome = { 0, 0, Width, Height };
+	return outcome;
+}
+// Draw a health bar. For Tf2 when a bar is bigger than max health a second bar is displayed
+void CEsp::DrawHealth(ESPBox box, IClientEntity* m_entity)
+{
+	float alpha = 255;
+	int player_health = m_entity->GetHealth() > 100 ? 100 : m_entity->GetHealth();
 
-	Interfaces::Surface->DrawSetColor(0, 0, 0, 150);
-	if (Menu::Window.VisualsTab.OptionsHealth.GetState())
-	{
-		Interfaces::Surface->DrawOutlinedRect(box.x - 5, box.y - 1, box.x - 1, box.y + box.h + 1);
+	if (player_health) {
+		int color[3] = { 0, 0, 0 };
 
-		int height = health * box.h / 100;
-
-		if (health > 0)
-		{
-			Interfaces::Surface->DrawSetColor(colors[0], colors[1], 0, 255);
-			Interfaces::Surface->DrawFilledRect(box.x - 4,
-				box.y + box.h - height,
-				box.x - 2,
-				box.y + box.h);
+		if (player_health >= 85) {
+			color[0] = 83; color[1] = 200; color[2] = 84;
 		}
+		else if (player_health >= 70) {
+			color[0] = 107; color[1] = 142; color[2] = 35;
+		}
+		else if (player_health >= 55) {
+			color[0] = 173; color[1] = 255; color[2] = 47;
+		}
+		else if (player_health >= 40) {
+			color[0] = 255; color[1] = 215; color[2] = 0;
+		}
+		else if (player_health >= 25) {
+			color[0] = 255; color[1] = 127; color[2] = 80;
+		}
+		else if (player_health >= 10) {
+			color[0] = 205; color[1] = 92; color[2] = 92;
+		}
+		else if (player_health >= 0) {
+			color[0] = 178; color[1] = 34; color[2] = 34;
+		}
+
+
+			Render::Outline(box.x - 7, box.y - 1, 4, box.h + 2, Color(21, 21, 21, alpha));
+
+		int health_height = player_health * box.h / 100;
+		int add_space = box.h - health_height;
+
+		Color hec = Color(color[0], color[1], color[2], alpha);
+
+		Render::DrawRect(box.x - 6, box.y, 2, box.h, Color(21, 21, 21, alpha));
+		Render::DrawRect(box.x - 6, box.y + add_space, 2, health_height, hec);
+
+		if (player_health < 100) {
+			RECT text_size = get_text_size(std::to_string(player_health).c_str(), Render::Fonts::ESPSmall);
+			Render::Textf(box.x - 5 - (text_size.right / 2), box.y + add_space - (text_size.bottom / 2), Color(255, 255, 255, alpha), Render::Fonts::ESPSmall, std::to_string(player_health).c_str());
+		}
+		
 	}
 }
 
