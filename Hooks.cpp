@@ -155,27 +155,28 @@ void ClanTag()
 
 		if (counter % 48 == 0)
 			motion++;
-		int value = ServerTime % 18;
+		int value = ServerTime % 19;
 		switch (value) {
-		case 0:SetClanTag("          ", "PenguWare"); break;
-		case 1:SetClanTag("         P", "PenguWare"); break;
-		case 2:SetClanTag("        Pe", "PenguWare"); break;
-		case 3:SetClanTag("       Pen", "PenguWare"); break;
-		case 4:SetClanTag("      Peng", "PenguWare"); break;
-		case 5:SetClanTag("     Pengu", "PenguWare"); break;
-		case 6:SetClanTag("    PenguW", "PenguWare"); break;
-		case 7:SetClanTag("   PenguWa", "PenguWare"); break;
-		case 8:SetClanTag("  PenguWar", "PenguWare"); break;
-		case 9:SetClanTag("PenguWare",  "PenguWare"); break;
-		case 10:SetClanTag("enguWare  ", "PenguWare"); break;
-		case 11:SetClanTag("nguWare   ", "PenguWare"); break;
-		case 12:SetClanTag("guWare    ", "PenguWare"); break;
-		case 13:SetClanTag("uWare     ", "PenguWare"); break;
-		case 14:SetClanTag("Ware    ", "PenguWare"); break;
-		case 15:SetClanTag("are       ", "PenguWare"); break;
-		case 16:SetClanTag("re        ", "PenguWare"); break;
-		case 17:SetClanTag("e         ", "PenguWare"); break;
-		case 18:SetClanTag("         ", "PenguWare"); break;
+		case 0:SetClanTag("          ", "InterPaste"); break;
+		case 1:SetClanTag("         I", "InterPaste"); break;
+		case 2:SetClanTag("        In", "InterPaste"); break;
+		case 3:SetClanTag("       Int", "InterPaste"); break;
+		case 4:SetClanTag("      Inte", "InterPaste"); break;
+		case 5:SetClanTag("     Inter", "InterPaste"); break;
+		case 6:SetClanTag("    InterP", "InterPaste"); break;
+		case 7:SetClanTag("   InterPa", "InterPaste"); break;
+		case 8:SetClanTag("  InterPas", "InterPaste"); break;
+		case 9:SetClanTag("InterPaste",  "InterPaste"); break;
+		case 10:SetClanTag("nterPaste  ", "InterPaste"); break;
+		case 11:SetClanTag("terPaste   ", "InterPaste"); break;
+		case 12:SetClanTag("erPaste   ", "InterPaste"); break;
+		case 13:SetClanTag("rPaste     ", "InterPaste"); break;
+		case 14:SetClanTag("Paste    ", "InterPaste"); break;
+		case 15:SetClanTag("aste       ", "InterPaste"); break;
+		case 16:SetClanTag("ste        ", "InterPaste"); break;
+		case 17:SetClanTag("te         ", "InterPaste"); break;
+		case 18:SetClanTag("e         ", "InterPaste"); break;
+		case 19:SetClanTag("          ", "InterPaste"); break;
 		}
 		counter++;
 	}
@@ -345,7 +346,7 @@ void __fastcall PaintTraverse_Hooked(PVOID pPanels, int edx, unsigned int vguiPa
 		}
 		if (Menu::Window.VisualsTab.Watermark.GetState())
 		{
-			Render::Text(7, 7, Color(186, 2, 66, 200), Render::Fonts::WaterMark, ("PenguWare.xyz v2"));
+			Render::Text(7, 7, Color(186, 2, 66, 200), Render::Fonts::WaterMark, ("InterPaste Pivate"));
 		}
 
 		if (Interfaces::Engine->IsConnected() && Interfaces::Engine->IsInGame())
