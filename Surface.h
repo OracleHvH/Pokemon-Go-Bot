@@ -52,7 +52,10 @@ public:
 		typedef void(__thiscall* OriginalFn)(PVOID, int, int, int, int);
 		call_vfunc< OriginalFn >(this, Offsets::VMT::Surface_DrawFilledRect)(this, x0, y0, x1, y1);
 	}
-
+	inline void DrawTexturedRect(int x, int y, int w, int h) {
+		typedef void(__thiscall *OrigFn)(void *, int, int, int, int);
+		call_vfunc<OrigFn>(this, 41)(this, x, y, w, h);
+	}
 	void DrawOutlinedRect(int x0, int y0, int x1, int y1)
 	{
 		typedef void(__thiscall* OriginalFn)(PVOID, int, int, int, int);

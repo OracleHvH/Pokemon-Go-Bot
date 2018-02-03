@@ -97,7 +97,7 @@ void CEsp::direction_arrow(const Vector& origin) {
 		float flXPosition = radius * -flSide;
 		float flYPosition = radius * -flFront;
 
-		float rotation = 0;
+		float rotation = game::globals.UserCmd->viewangles.y;
 
 		rotation = atan2(flXPosition, flYPosition) + M_PI;
 		rotation *= 180.0f / M_PI;
@@ -108,8 +108,12 @@ void CEsp::direction_arrow(const Vector& origin) {
 
 		flXPosition = (int)((width / 2.0f) + (radius * flSinYaw));
 		flYPosition = (int)((height / 2.0f) - (radius * flCosYaw));
-
-		Render::DrawRect(flXPosition, flYPosition, 10, 10, Color(255, 255, 255));
+		float DirectionAlpha = 1;
+		if (DirectionAlpha <= 1)
+			DirectionAlpha = min(DirectionAlpha + 8, 255);
+		else if (DirectionAlpha >= 255)
+			DirectionAlpha = max(DirectionAlpha - 255, 1);
+		Render::DrawRect(flXPosition, flYPosition, 10, 10, Color(255, 255, 255, DirectionAlpha));
 	}
 }
 void CEsp::SpecList()
@@ -171,8 +175,9 @@ void CEsp::DrawPlayer(IClientEntity* pEntity, player_info_t pinfo)
 		if (pEntity->IsAlive()) {
 			Vector Position;
 			Position = pEntity->GetOrigin() - Vector(0, 0, 0);
-
-			if (!GetBox(pEntity, Box)) {
+			int EntityNum = pEntity->GetTeamNum();
+			int LocalPlayerTeam = hackManager.pLocal()->GetTeamNum();
+			if (!GetBox(pEntity, Box) && EntityNum != LocalPlayerTeam) {
 				direction_arrow(Position);
 			}
 
