@@ -358,12 +358,12 @@ void CMiscHacks::ChatSpamInterwebz()
 		static bool useSpace = true;
 		if (useSpace)
 		{
-			change_name ("PenguWare-");
+			change_name ("InterPaste-");
 			useSpace = !useSpace;
 		}
 		else
 		{
-			change_name("-PenguWare");
+			change_name("-InterPaste");
 			useSpace = !useSpace;
 		}
 	}
@@ -386,12 +386,12 @@ void CMiscHacks::ChatSpamDisperseName()
 		static bool useSpace = true;
 		if (useSpace)
 		{
-			change_name("\nPenguWare\n");
+			change_name("\nInterPaste\n");
 			useSpace = !useSpace;
 		}
 		else
 		{
-			change_name("\nnPenguWare\n");
+			change_name("\nnInterPaste\n");
 			useSpace = !useSpace;
 		}
 	}
@@ -444,7 +444,7 @@ void CMiscHacks::ChatSpamName()
 	}
 	else
 	{
-		change_name ("PenguWare");
+		change_name ("InterPaste");
 	}
 
 	start_t = clock();
@@ -463,11 +463,11 @@ void CMiscHacks::ChatSpamRegular()
 
 	if (Menu::Window.MiscTab.OtherTeamChat.GetState())
 	{
-		SayInTeamChat("PenguWare owns me and all");
+		SayInTeamChat("InterPaste Tapz me and all");
 	}
 	else
 	{
-		SayInChat("PenguWare owns me and all");
+		SayInChat("InterPaste Tapz me and all");
 	}
 
 	start_t = clock();
