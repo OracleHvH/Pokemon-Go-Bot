@@ -4,3 +4,7 @@
 *.opendb
 *.tlog
 *.obj
+*.pdb
+*.ipch
+*.pdb
+Release/vc141.pdb

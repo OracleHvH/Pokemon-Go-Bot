@@ -1,7 +1,7 @@
 /*
 Syn's AyyWare Framework 2015
 */
-
+//
 #include "Menu.h"
 #include "Controls.h"
 #include "Hooks.h" // for the unload meme
