@@ -21,7 +21,7 @@ public:
 	CSlider  AimbotFov;
 	CCheckBox AimbotSilentAim;
 	CCheckBox PVSFix;
-	CComboBox AimbotResolver;
+	CCheckBox AimbotResolver;
 	CCheckBox AdvancedResolver;
 	CCheckBox AutoRevolver;
 	CSlider AddFakeYaw;

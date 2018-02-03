@@ -255,17 +255,7 @@ void CRageBotTab::Setup()
 	AccuracyPositionAdjustment.SetFileId("acc_posadj");
 	AccuracyGroup.PlaceLabledControl("Position Adjustment", this, &AccuracyPositionAdjustment);
 
-	LowerbodyFix.SetFileId("acc_lowerbodyfix");
-	AccuracyGroup.PlaceLabledControl("LBY Correction", this, &LowerbodyFix);
-
-	AdvancedResolver.SetFileId("acc_advancedresolver");
-	AccuracyGroup.PlaceLabledControl("Pitch Correction", this, &AdvancedResolver);
-
 	AimbotResolver.SetFileId("acc_aaa");
-	AimbotResolver.AddItem("Off");
-	AimbotResolver.AddItem("Level 1");
-	AimbotResolver.AddItem("Level 2");
-	AimbotResolver.AddItem("Level 3");
 	AccuracyGroup.PlaceLabledControl("Resolver", this, &AimbotResolver);
 
 	//ResolverDebug.SetFileId("acc_debugresolver");

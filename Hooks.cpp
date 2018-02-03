@@ -486,8 +486,7 @@ bool __fastcall Hooked_FireEventClientSide(PVOID ECX, PVOID EDX, IGameEvent *Eve
 		}
 	}
 
-	if (Menu::Window.RageBotTab.AimbotResolver.GetIndex() == 3)
-	{
+
 		if (!strcmp(Event->GetName(), "player_hurt"))
 		{
 			int deadfag = Event->GetInt("userid");
@@ -509,7 +508,7 @@ bool __fastcall Hooked_FireEventClientSide(PVOID ECX, PVOID EDX, IGameEvent *Eve
 				}
 			}
 		}
-	}
+	
 
 	if (Menu::Window.RageBotTab.FlipAA.GetState())
 	{
