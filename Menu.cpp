@@ -753,6 +753,9 @@ void CVisualTab::Setup()
 	SniperCrosshair.SetFileId("otr_snipercrosshair");
 	OtherGroup.PlaceLabledControl("Sniper Crosshair", this, &SniperCrosshair);
 
+	DirectionArrow.SetFileId("opt_directionarrow");
+	OptionsGroup.PlaceLabledControl("Direction Arrow", this, &DirectionArrow);
+
 	NightSky.SetFileId("otr_nightsky");
 	OtherGroup.PlaceLabledControl("Night Sky", this, &NightSky);
 

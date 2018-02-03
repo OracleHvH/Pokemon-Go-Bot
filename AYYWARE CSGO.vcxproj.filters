@@ -201,6 +201,12 @@
     <ClInclude Include="NightMode.h">
       <Filter>Header Files\Hacks</Filter>
     </ClInclude>
+    <ClInclude Include="newglobals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="game.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLLMain.cpp">
@@ -295,6 +301,9 @@
     </ClCompile>
     <ClCompile Include="NightMode.cpp">
       <Filter>Source Files\Hacks</Filter>
+    </ClCompile>
+    <ClCompile Include="game.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
