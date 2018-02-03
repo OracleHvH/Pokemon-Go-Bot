@@ -998,37 +998,37 @@ void CSkinchangerTab::Setup()
 {
 	SetTitle("e");
 
-	//SkinActive.SetPosition(20, 16);
-	////SkinActive.SetText("Active");
-	//	RegisterControl(&SkinActive);
+	SkinActive.SetPosition(20, 16);
+	SkinActive.SetText("Active");
+		RegisterControl(&SkinActive);
 
-	//SkinEnable.SetFileId("Skin_enable");
-	//SkinEnable.SetPosition(70, 18);
-	//RegisterControl(&SkinEnable);
+	SkinEnable.SetFileId("Skin_enable");
+	SkinEnable.SetPosition(70, 18);
+	RegisterControl(&SkinEnable);
 
 #pragma region Knife
-	//KnifeGroup.SetPosition(16, 11);
-	//KnifeGroup.SetText("Knife Beta");
-	//KnifeGroup.SetSize(376, 80);
-	//RegisterControl(&KnifeGroup);
+	KnifeGroup.SetPosition(16, 11);
+	KnifeGroup.SetText("Knife Beta");
+	KnifeGroup.SetSize(376, 80);
+	RegisterControl(&KnifeGroup);
 
-	//KnifeModel.SetFileId("knife_model");
-	//KnifeModel.AddItem("Bayonet");
-	//KnifeModel.AddItem("Bowie Knife");
-	//KnifeModel.AddItem("Butterfly Knife");
-	//KnifeModel.AddItem("Falchion Knife");
-	//KnifeModel.AddItem("Flip Knife");
-	//KnifeModel.AddItem("Gut Knife");
-	//KnifeModel.AddItem("Huntsman Knife");
-	//KnifeModel.AddItem("Karambit");
-	//KnifeModel.AddItem("M9 Bayonet");
-	//KnifeModel.AddItem("Shadow Daggers");
-	//KnifeGroup.PlaceLabledControl("Knife", this, &KnifeModel);
+	KnifeModel.SetFileId("knife_model");
+	KnifeModel.AddItem("Bayonet");
+	KnifeModel.AddItem("Bowie Knife");
+	KnifeModel.AddItem("Butterfly Knife");
+	KnifeModel.AddItem("Falchion Knife");
+	KnifeModel.AddItem("Flip Knife");
+	KnifeModel.AddItem("Gut Knife");
+	KnifeModel.AddItem("Huntsman Knife");
+	KnifeModel.AddItem("Karambit");
+	KnifeModel.AddItem("M9 Bayonet");
+	KnifeModel.AddItem("Shadow Daggers");
+	KnifeGroup.PlaceLabledControl("Knife", this, &KnifeModel);
 
-	//KnifeSkin.SetFileId("knife_skin");
-	//KnifeGroup.PlaceLabledControl("Skin ID", this, &KnifeSkin);
+	KnifeSkin.SetFileId("knife_skin");
+	KnifeGroup.PlaceLabledControl("Skin ID", this, &KnifeSkin);
 #pragma endregion
-/*
+
 #pragma region Machineguns
 	MachinegunsGroup.SetPosition(408, 11);
 	MachinegunsGroup.SetText("Heavy");
@@ -1492,7 +1492,7 @@ void CSkinchangerTab::Setup()
 #pragma endregion
 
 #pragma endregion other random options
-*/
+
 }
 
 
