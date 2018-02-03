@@ -899,8 +899,8 @@ void CMiscTab::Setup()
 	OtherChatSpam.SetFileId("otr_spam");
 	OtherChatSpam.AddItem("Off");
 	OtherChatSpam.AddItem("Namestealer");
-	OtherChatSpam.AddItem("Pengu Chat");
-	OtherChatSpam.AddItem("Pengu Name");
+	OtherChatSpam.AddItem("Inter Chat");
+	OtherChatSpam.AddItem("Inter Name");
 	OtherChatSpam.AddItem("White Name");
 	OtherGroup.PlaceLabledControl("Chat Spam", this, &OtherChatSpam);
 
@@ -909,7 +909,7 @@ void CMiscTab::Setup()
 
 	OtherClantag.SetFileId("otr_spam");
 	OtherClantag.AddItem("Off");
-	OtherClantag.AddItem("Pengu");
+	OtherClantag.AddItem("Inter");
 	OtherClantag.AddItem("Blank");
 	OtherClantag.AddItem("Valve");
 	OtherClantag.AddItem("Hours");
