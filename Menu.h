@@ -218,6 +218,7 @@ public:
 	CCheckBox Grenades;
 	CCheckBox OtherNoSky; 
 	CCheckBox OtherNoFlash; 
+	CCheckBox DirectionArrow;
 	CCheckBox DisablePostProcess;
 	CSlider AmbientRed;
 	CSlider AmbientGreen;
