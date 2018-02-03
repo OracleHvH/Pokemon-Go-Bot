@@ -463,11 +463,11 @@ void CMiscHacks::ChatSpamRegular()
 
 	if (Menu::Window.MiscTab.OtherTeamChat.GetState())
 	{
-		SayInTeamChat("InterPaste Tapz me and all");
+		SayInTeamChat("InterPaste > All");
 	}
 	else
 	{
-		SayInChat("InterPaste Tapz me and all");
+		SayInChat("InterPaste by oracle and Eva-Mods");
 	}
 
 	start_t = clock();
