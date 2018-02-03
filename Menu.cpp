@@ -86,7 +86,7 @@ void AyyWareWindow::Setup()
 {
 	SetPosition(350, 50);
 	SetSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-	SetTitle("PenguWare.xyz");
+	SetTitle("InterPaste");
 
 	RegisterTab(&RageBotTab);
 	RegisterTab(&LegitBotTab);
