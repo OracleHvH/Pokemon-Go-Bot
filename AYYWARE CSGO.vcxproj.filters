@@ -207,6 +207,18 @@
     <ClInclude Include="game.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NetChan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="bfwrite.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RadianShit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLLMain.cpp">
@@ -303,6 +315,9 @@
       <Filter>Source Files\Hacks</Filter>
     </ClCompile>
     <ClCompile Include="game.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="bfwrite.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

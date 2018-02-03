@@ -196,7 +196,9 @@ void ClanTag()
 
 	}
 }
+#include "NetChan.h"
 #include "game.h"
+
 bool __stdcall CreateMoveClient_Hooked(/*void* self, int edx,*/ float frametime, CUserCmd* pCmd)
 {
 	if (!pCmd->command_number)

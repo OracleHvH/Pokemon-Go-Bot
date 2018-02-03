@@ -131,6 +131,7 @@
     <ClInclude Include="AntiAntiAim.h" />
     <ClInclude Include="Autowall.h" />
     <ClInclude Include="BaseClient.h" />
+    <ClInclude Include="bfwrite.h" />
     <ClInclude Include="bspflags.h" />
     <ClInclude Include="Chams.h" />
     <ClInclude Include="ClientRecvProps.h" />
@@ -147,8 +148,11 @@
     <ClInclude Include="GUI.h" />
     <ClInclude Include="Hacks.h" />
     <ClInclude Include="hitmarker.h" />
+    <ClInclude Include="NetChan.h" />
     <ClInclude Include="newglobals.h" />
     <ClInclude Include="NightMode.h" />
+    <ClInclude Include="platform.h" />
+    <ClInclude Include="RadianShit.h" />
     <ClInclude Include="Resolver.h" />
     <ClInclude Include="winwindef.h" />
     <ClInclude Include="Hooks.h" />
@@ -179,6 +183,7 @@
   <ItemGroup>
     <ClCompile Include="AntiAntiAim.cpp" />
     <ClCompile Include="Autowall.cpp" />
+    <ClCompile Include="bfwrite.cpp" />
     <ClCompile Include="Chams.cpp" />
     <ClCompile Include="Controls.cpp" />
     <ClCompile Include="CRC32.cpp" />
