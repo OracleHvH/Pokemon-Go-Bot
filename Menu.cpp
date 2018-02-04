@@ -346,6 +346,9 @@ void CRageBotTab::Setup()
 	AddFakeYaw.SetValue(0);
 	AntiAimGroup.PlaceLabledControl("Add Fake Yaw", this, &AddFakeYaw);
 
+	FreeStanding.SetFileId("aa_freestanding");
+	AntiAimGroup.PlaceLabledControl("Free Standing", this, &FreeStanding);
+
 	FlipAA.SetFileId("aa_flip");
 	AntiAimGroup.PlaceLabledControl("Flip AA on Hit", this, &FlipAA);
 

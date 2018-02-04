@@ -301,7 +301,7 @@ bool __stdcall CreateMoveClient_Hooked(/*void* self, int edx,*/ float frametime,
 			pCmd->forwardmove = -pCmd->forwardmove;
 		}
 
-		if (bSendPacket)
+		if (!bSendPacket)
 			LastAngleAA = pCmd->viewangles;
 	}
 

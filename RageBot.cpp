@@ -1770,7 +1770,178 @@ void DoFakeAA(CUserCmd* pCmd, bool& bSendPacket, IClientEntity* pLocal)
 		pCmd->viewangles.y -= Menu::Window.RageBotTab.AddFakeYaw.GetValue();
 	RandomFake = !RandomFake;
 }
+float lbypredictiontime = 0.f;
+float GetBestHeadAngle(float yaw)
+{
+	float Back, Right, Left;
 
+	Vector src3D, dst3D, forward, right, up, src, dst;
+	trace_t tr;
+	Ray_t ray, ray2, ray3, ray4, ray5;
+	CTraceFilter filter;
+
+	QAngle engineViewAngles;
+	Interfaces::Engine->GetViewAngles(engineViewAngles);
+
+	engineViewAngles.x = 0;
+
+	AngleVectors(engineViewAngles, &forward, &right, &up);
+
+	filter.pSkip = hackManager.pLocal();
+	src3D = hackManager.pLocal()->GetEyePosition();
+	dst3D = src3D + (forward * 384);
+
+	ray.Init(src3D, dst3D);
+
+	Interfaces::Trace->TraceRay(ray, MASK_SHOT, &filter, &tr);
+
+	Back = (tr.endpos - tr.startpos).Length();
+
+	ray2.Init(src3D + right * 35, dst3D + right * 35);
+
+	Interfaces::Trace->TraceRay(ray2, MASK_SHOT, &filter, &tr);
+
+	Right = (tr.endpos - tr.startpos).Length();
+
+	ray3.Init(src3D - right * 35, dst3D - right * 35);
+
+	Interfaces::Trace->TraceRay(ray3, MASK_SHOT, &filter, &tr);
+
+	Left = (tr.endpos - tr.startpos).Length();
+
+	if (Left > Right)
+	{
+		return (yaw - 90);
+	}
+	else if (Right > Left)
+	{
+		return (yaw + 90);
+	}
+	else if (Back > Right || Back > Left)
+	{
+		return (yaw - 180);
+	}
+	return 0;
+}
+
+float GetBestHeadAngleFake(float yaw)
+{
+	float Back, Right, Left;
+
+	Vector src3D, dst3D, forward, right, up, src, dst;
+	trace_t tr;
+	Ray_t ray, ray2, ray3, ray4, ray5;
+	CTraceFilter filter;
+
+	QAngle engineViewAngles;
+	Interfaces::Engine->GetViewAngles(engineViewAngles);
+
+	engineViewAngles.x = 0;
+
+	AngleVectors(engineViewAngles, &forward, &right, &up);
+
+	filter.pSkip = hackManager.pLocal();
+	src3D = hackManager.pLocal()->GetEyePosition();
+	dst3D = src3D + (forward * 384);
+
+	ray.Init(src3D, dst3D);
+
+	Interfaces::Trace->TraceRay(ray, MASK_SHOT, &filter, &tr);
+
+	Back = (tr.endpos - tr.startpos).Length();
+
+	ray2.Init(src3D + right * 35, dst3D + right * 35);
+
+	Interfaces::Trace->TraceRay(ray2, MASK_SHOT, &filter, &tr);
+
+	Right = (tr.endpos - tr.startpos).Length();
+
+	ray3.Init(src3D - right * 35, dst3D - right * 35);
+
+	Interfaces::Trace->TraceRay(ray3, MASK_SHOT, &filter, &tr);
+
+	Left = (tr.endpos - tr.startpos).Length();
+
+	if (Left > Right)
+	{
+		return (yaw + 90);
+	}
+	else if (Right > Left)
+	{
+		return (yaw - 90);
+	}
+	else if (Back > Right || Back > Left)
+	{
+		return (yaw + 180);
+	}
+	return 0;
+}
+bool ShouldPredict()
+{
+	INetChannelInfo* nci = Interfaces::Engine->GetNetChannelInfo();
+
+	float server_time = Interfaces::Globals->curtime + nci->GetLatency(FLOW_OUTGOING);
+
+	static bool initialized;
+	bool will_update = false;
+
+	if (!initialized && !hackManager.pLocal()->GetVelocity().Length2D() > 0)
+	{
+		initialized = true;
+		lbypredictiontime = server_time + 0.22f;
+	}
+	else if (hackManager.pLocal()->GetVelocity().Length2D() > 0)
+	{
+		initialized = false;
+	}
+
+	if (server_time >= (lbypredictiontime) && hackManager.pLocal()->GetFlags() & FL_ONGROUND)
+	{
+		lbypredictiontime = server_time + 1.1f;
+		will_update = true;
+	}
+	return will_update;
+}
+
+void BreakLowerbodyFreestand(CUserCmd* pCmd, bool& bSendPacket)
+{
+	QAngle Angles;
+	Interfaces::Engine->GetViewAngles(Angles);
+	float BestHeadPosition = GetBestHeadAngle(Angles.y);
+	float BestFakeHeadPosition = GetBestHeadAngleFake(Angles.y);
+	int LowerbodyDelta = 0;
+	if (bSendPacket)
+	{
+		if (ShouldPredict())
+		{
+
+			pCmd->viewangles.y = BestFakeHeadPosition + LowerbodyDelta;
+
+		}
+		else
+		{
+			pCmd->viewangles.y = BestFakeHeadPosition;
+
+
+		}
+	}
+	else
+	{
+		if (ShouldPredict())
+		{
+
+			pCmd->viewangles.y = BestHeadPosition + LowerbodyDelta;
+
+
+		}
+		else
+		{
+
+			pCmd->viewangles.y = BestHeadPosition;
+
+		}
+	}
+}
 void CRageBot::DoAntiAim(CUserCmd *pCmd, bool &bSendPacket)
 {
 	IClientEntity* pLocal = hackManager.pLocal();
@@ -1799,6 +1970,7 @@ void CRageBot::DoAntiAim(CUserCmd *pCmd, bool &bSendPacket)
 			}
 		}
 	}
+
 	if (Menu::Window.RageBotTab.AntiAimTarget.GetState())
 	{
 		aimAtPlayer(pCmd);
@@ -1831,71 +2003,78 @@ void CRageBot::DoAntiAim(CUserCmd *pCmd, bool &bSendPacket)
 		Random = !Random;
 
 	}
-
-	if (Menu::Window.RageBotTab.LBY.GetState() && pLocal->GetVelocity().Length2D() == 0)
+	if (Menu::Window.RageBotTab.FreeStanding.GetState() > 0 && hackManager.pLocal()->GetVelocity().Length() <= 75.f && hackManager.pLocal()->GetFlags() & FL_ONGROUND) // freestand
 	{
-#define RandomInt(min, max) (rand() % (max - min + 1) + min)
-		static bool fakeantiaim;
-		int rand2;
-		{
-			int var1;
-			int var2;
-			float var3;
-
-			pCmd->viewangles.y += 179.9;
-			var1 = rand() % 100;
-			var2 = rand() % (10 - 6 + 1) + 10;
-			var3 = var2 - (rand() % var2);
-			if (var1 < 60 + (rand() % 14))
-				pCmd->viewangles.y -= var3;
-			else if (var1 < 100 + (rand() % 14))
-				pCmd->viewangles.y += var3;
-		}
-
-		if (fakeantiaim)
-		{
-			rand2 = RandomInt(1, 100);
-
-			if (rand2 < 2.0)
-			{
-				bSendPacket = true;
-				pCmd->viewangles.y = hackManager.pLocal()->GetLowerBodyYaw() + 92.3 - 0 - 31.3;
-			}
-
-			else
-			{
-				bSendPacket = true;
-				pCmd->viewangles.y = hackManager.pLocal()->GetLowerBodyYaw() + 91.7;
-			}
-			fakeantiaim = false;
-		}
-		else
-		{
-			bSendPacket = false;
-			pCmd->viewangles.y += 154.4;
-			fakeantiaim = true;
-		}
+		BreakLowerbodyFreestand(pCmd, bSendPacket);
 	}
 	else
 	{
-		static int ChokedPackets = -1;
-		ChokedPackets++;
-		if (ChokedPackets < 1)
+		if (Menu::Window.RageBotTab.LBY.GetState() && pLocal->GetVelocity().Length2D() == 0)
 		{
-			bSendPacket = true;
-			DoFakeAA(pCmd, bSendPacket, pLocal);
+#define RandomInt(min, max) (rand() % (max - min + 1) + min)
+			static bool fakeantiaim;
+			int rand2;
+			{
+				int var1;
+				int var2;
+				float var3;
+
+				pCmd->viewangles.y += 179.9;
+				var1 = rand() % 100;
+				var2 = rand() % (10 - 6 + 1) + 10;
+				var3 = var2 - (rand() % var2);
+				if (var1 < 60 + (rand() % 14))
+					pCmd->viewangles.y -= var3;
+				else if (var1 < 100 + (rand() % 14))
+					pCmd->viewangles.y += var3;
+			}
+
+			if (fakeantiaim)
+			{
+				rand2 = RandomInt(1, 100);
+
+				if (rand2 < 2.0)
+				{
+					bSendPacket = true;
+					pCmd->viewangles.y = hackManager.pLocal()->GetLowerBodyYaw() + 92.3 - 0 - 31.3;
+				}
+
+				else
+				{
+					bSendPacket = true;
+					pCmd->viewangles.y = hackManager.pLocal()->GetLowerBodyYaw() + 91.7;
+				}
+				fakeantiaim = false;
+			}
+			else
+			{
+				bSendPacket = false;
+				pCmd->viewangles.y += 154.4;
+				fakeantiaim = true;
+			}
 		}
 		else
 		{
-			bSendPacket = false;
-			DoRealAA(pCmd, pLocal, bSendPacket);
-			ChokedPackets = -1;
-		}
+			static int ChokedPackets = -1;
+			ChokedPackets++;
+			if (ChokedPackets < 1)
+			{
+				bSendPacket = true;
+				DoFakeAA(pCmd, bSendPacket, pLocal);
+			}
+			else
+			{
+				bSendPacket = false;
+				DoRealAA(pCmd, pLocal, bSendPacket);
+				ChokedPackets = -1;
+			}
 
-		if (flipAA)
-		{
-			pCmd->viewangles.y -= 25;
+			if (flipAA)
+			{
+				pCmd->viewangles.y -= 25;
+			}
 		}
 	}
+
 }
 

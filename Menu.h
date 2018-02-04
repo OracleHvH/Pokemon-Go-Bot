@@ -73,6 +73,7 @@ public:
 	CCheckBox AccuracyResolver2;
 	CKeyBind AccuracyAntifakewalk;
 	CCheckBox AntiAimTarget;
+	CCheckBox FreeStanding;
 };
 
 class CLegitBotTab : public CTab
