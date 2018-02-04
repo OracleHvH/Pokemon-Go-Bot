@@ -349,17 +349,15 @@ void CRageBotTab::Setup()
 	FreeStanding.SetFileId("aa_freestanding");
 	AntiAimGroup.PlaceLabledControl("Free Standing", this, &FreeStanding);
 
-	FlipAA.SetFileId("aa_flip");
-	AntiAimGroup.PlaceLabledControl("Flip AA on Hit", this, &FlipAA);
+	FreeStandingDelta.SetFileId("aa_freestanding_delta");
+	FreeStandingDelta.SetBoundaries(0, 360);
+	FreeStandingDelta.SetValue(0);
+	AntiAimGroup.PlaceLabledControl("Free Standing Delta", this, &FreeStandingDelta);
 
-	LBY.SetFileId("aa_lby");
-	AntiAimGroup.PlaceLabledControl("Anti Resolver", this, &LBY);
-
-	AccuracyResolver2.SetFileId("acc_fag");
-	AntiAimGroup.PlaceLabledControl("Anti-FakeWalk", this, &AccuracyResolver2);
-
-	AntiAimKnife.SetFileId("aa_knife");
-	AntiAimGroup.PlaceLabledControl("Knife AA", this, &AntiAimKnife);
+	FreeStandingVelocityBreak.SetFileId("aa_freestanding_velo_break");
+	FreeStandingVelocityBreak.SetBoundaries(0, 250);
+	FreeStandingVelocityBreak.SetValue(75);
+	AntiAimGroup.PlaceLabledControl("Free Standing Maximum Velocity", this, &FreeStandingVelocityBreak);
 
 	AntiAimTarget.SetFileId("aa_target");
 	AntiAimGroup.PlaceLabledControl("At Targets", this, &AntiAimTarget);

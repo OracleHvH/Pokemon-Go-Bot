@@ -127,7 +127,7 @@ void ResolverSetup::Resolve(IClientEntity* pEntity)
 		{
 			pEntity->GetEyeAnglesXY()->y = pEntity->GetEyeAnglesXY()->y + 180;
 		}
-		else
+		else // I don't wanna talk about it
 		{
 			switch (Globals::missedshots % 3)
 			{

@@ -1909,7 +1909,7 @@ void BreakLowerbodyFreestand(CUserCmd* pCmd, bool& bSendPacket)
 	Interfaces::Engine->GetViewAngles(Angles);
 	float BestHeadPosition = GetBestHeadAngle(Angles.y);
 	float BestFakeHeadPosition = GetBestHeadAngleFake(Angles.y);
-	int LowerbodyDelta = 0;
+	int LowerbodyDelta = Menu::Window.RageBotTab.FreeStandingDelta.GetValue();
 	if (bSendPacket)
 	{
 		if (ShouldPredict())
@@ -1959,15 +1959,10 @@ void CRageBot::DoAntiAim(CUserCmd *pCmd, bool &bSendPacket)
 
 		if (!GameUtils::IsBallisticWeapon(pWeapon))
 		{
-			if (Menu::Window.RageBotTab.AntiAimKnife.GetState())
-			{
+		
 				if (!CanOpenFire() || pCmd->buttons & IN_ATTACK2)
 					return;
-			}
-			else
-			{
-				return;
-			}
+			
 		}
 	}
 
@@ -2003,7 +1998,7 @@ void CRageBot::DoAntiAim(CUserCmd *pCmd, bool &bSendPacket)
 		Random = !Random;
 
 	}
-	if (Menu::Window.RageBotTab.FreeStanding.GetState() > 0 && hackManager.pLocal()->GetVelocity().Length() <= 75.f && hackManager.pLocal()->GetFlags() & FL_ONGROUND) // freestand
+	if (Menu::Window.RageBotTab.FreeStanding.GetState() > 0 && hackManager.pLocal()->GetVelocity().Length() <= Menu::Window.RageBotTab.FreeStandingVelocityBreak.GetValue() && hackManager.pLocal()->GetFlags() & FL_ONGROUND) // freestand
 	{
 		BreakLowerbodyFreestand(pCmd, bSendPacket);
 	}

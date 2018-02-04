@@ -74,6 +74,8 @@ public:
 	CKeyBind AccuracyAntifakewalk;
 	CCheckBox AntiAimTarget;
 	CCheckBox FreeStanding;
+	CSlider FreeStandingDelta;
+	CSlider FreeStandingVelocityBreak;
 };
 
 class CLegitBotTab : public CTab
