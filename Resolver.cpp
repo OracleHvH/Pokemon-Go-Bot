@@ -117,7 +117,7 @@ void ResolverSetup::Resolve(IClientEntity* pEntity)
 	else
 		ResolverSetup::lbyupdated = true;
 
-	if (Menu::Window.RageBotTab.AimbotResolver.GetState())
+	if (Menu::Window.RageBotTab.AimbotResolver.GetState() && hackManager.pLocal()->IsAlive())
 	{
 		if (CoolMovingDude(pEntity))
 		{
@@ -127,7 +127,7 @@ void ResolverSetup::Resolve(IClientEntity* pEntity)
 		{
 			pEntity->GetEyeAnglesXY()->y = pEntity->GetEyeAnglesXY()->y + 180;
 		}
-		else // I don't wanna talk about it
+		else
 		{
 			switch (Globals::missedshots % 3)
 			{

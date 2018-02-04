@@ -30,7 +30,7 @@ private:
 	bool GetBox(IClientEntity* pEntity, ESPBox &result);
 	void direction_arrow(const Vector & origin);
 	// Draw shit about player
-	void SpecList();
+
 	void DrawGlow(IClientEntity *pEntity, int r, int g, int b, int a);
 	void DrawBox(ESPBox size, Color color);
 	void DrawName(player_info_t pinfo, ESPBox size);

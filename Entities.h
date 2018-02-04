@@ -550,6 +550,138 @@ public:
 
 	CNETVAR_FUNC(int, GetZoomLevel, 0x26553F1A);
 
+	char* GetGunName()
+	{
+		int WeaponId = *this->GetItemDefinitionIndex();
+		switch (WeaponId)
+		{
+		case WEAPON_AK47:
+			return "ak-47";
+			break;
+		case WEAPON_AUG:
+			return "aug";
+			break;
+		case WEAPON_REVOLVER:
+			return "r8-revolver";
+			break;
+		case WEAPON_AWP:
+			return "awp";
+			break;
+		case WEAPON_BIZON:
+			return "bizon";
+			break;
+		case WEAPON_C4:
+			return "c4";
+			break;
+		case WEAPON_CZ75A:
+			return "cz75";
+			break;
+		case WEAPON_DEAGLE:
+			return "desert-eagle";
+			break;
+		case WEAPON_DECOY:
+			return "decoy";
+			break;
+		case WEAPON_ELITE:
+			return "dual-berettas";
+			break;
+		case WEAPON_FAMAS:
+			return "famas";
+			break;
+		case WEAPON_FIVESEVEN:
+			return "five-seven";
+			break;
+		case WEAPON_FLASHBANG:
+			return "flash";
+			break;
+		case WEAPON_G3SG1:
+			return "g3sg1";
+			break;
+		case WEAPON_GALILAR:
+			return "galil";
+			break;
+		case WEAPON_GLOCK:
+			return "glock";
+			break;
+		case WEAPON_INCGRENADE:
+			return "incendenary";
+			break;
+		case WEAPON_MOLOTOV:
+			return "molotov";
+			break;
+		case WEAPON_SSG08:
+			return "ssg08";
+			break;
+		case WEAPON_HEGRENADE:
+			return "hegrenade";
+			break;
+		case WEAPON_M249:
+			return "m249";
+			break;
+		case WEAPON_M4A1:
+			return "m4a1";
+			break;
+		case WEAPON_MAC10:
+			return "mac10";
+			break;
+		case WEAPON_MAG7:
+			return "mag7";
+			break;
+		case WEAPON_MP7:
+			return "mp7";
+			break;
+		case WEAPON_MP9:
+			return "mp9";
+			break;
+		case WEAPON_NOVA:
+			return "nova";
+			break;
+		case WEAPON_NEGEV:
+			return "negev";
+			break;
+		case WEAPON_P250:
+			return "p250";
+			break;
+		case WEAPON_P90:
+			return "p90";
+			break;
+		case WEAPON_SAWEDOFF:
+			return "sawedoff";
+			break;
+		case WEAPON_SCAR20:
+			return "scar20";
+			break;
+		case WEAPON_SMOKEGRENADE:
+			return "smoke";
+			break;
+		case WEAPON_SG556:
+			return "sg553";
+			break;
+		case WEAPON_TEC9:
+			return "tec9";
+			break;
+		case WEAPON_HKP2000:
+			return "p2000";
+			break;
+		case WEAPON_USP_SILENCER:
+			return "usp-s";
+			break;
+		case WEAPON_UMP45:
+			return "ump45";
+			break;
+		case WEAPON_XM1014:
+			return "xm1014";
+			break;
+		case WEAPON_TASER:
+			return "zeus";
+			break;
+		case WEAPON_M4A1_SILENCER:
+			return "m4a1-s";
+		}
+		if (IsKnife())
+			return "knife";
+		return "";
+	}
 	float GetInaccuracy()
 	{
 		typedef float(__thiscall* oInaccuracy)(PVOID);
@@ -588,12 +720,21 @@ public:
 		typedef void(__thiscall *OrigFn)(void *);
 		return call_vfunc<OrigFn>(this, 470)(this);
 	}
-
+	int* GetItemDefinitionIndex()
+	{
+		return (int*)m_AttributeManager()->m_Item()->ItemDefinitionIndex();
+	}
 	bool IsScoped(int x = 0)
 	{
 		return GetZoomLevel() > 0;
 	}
-
+	bool IsKnife()
+	{
+		int* Index = GetItemDefinitionIndex();
+		if (*Index == 42 || *Index == 59 || *Index >= 500)
+			return true;
+		return false;
+	}
 	CSWeaponInfo* GetCSWpnData()
 	{
 		if (!this) return nullptr;
@@ -747,7 +888,7 @@ public:
 	CNETVAR_FUNC(bool, IsScoped, 0x61B9C22C); //m_bIsScoped
 	//CNETVAR_FUNC(int, GetPlayerCompRank, 0x75671F7F);
 	// ----------------------------------------------//
-
+	CBaseCombatWeapon* GetWeapon();
 	bool IsAlive()
 	{
 		return (GetLifeState() == LIFE_ALIVE && GetHealth() > 0);

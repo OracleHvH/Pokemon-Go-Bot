@@ -916,9 +916,6 @@ void CMiscTab::Setup()
 	OtherAirStuck.SetFileId("otr_astuck");
 	OtherGroup.PlaceLabledControl("Air Stuck", this, &OtherAirStuck);
 
-	OtherSpectators.SetFileId("otr_speclist");
-	OtherGroup.PlaceLabledControl("Spectators List", this, &OtherSpectators);
-
 	OtherThirdperson.SetFileId("aa_thirdpsr");
 	OtherGroup.PlaceLabledControl("Thirdperson", this, &OtherThirdperson);
 

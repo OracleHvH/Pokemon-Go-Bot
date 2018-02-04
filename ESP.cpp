@@ -66,10 +66,7 @@ void CEsp::Draw()
 			}
 		}
 
-		if (Menu::Window.MiscTab.OtherSpectators.GetState())
-		{
-			SpecList();
-		}
+
 
 }
 #include "game.h"
@@ -111,50 +108,6 @@ void CEsp::direction_arrow(const Vector& origin) {
 
 		Render::DrawRect(flXPosition, flYPosition, 10, 10, Color(125, 255, 125));
 	}
-}
-void CEsp::SpecList()
-{
-	IClientEntity *pLocal = hackManager.pLocal();
-
-	RECT scrn = Render::GetViewport();
-	int ayy = 0;
-
-	// Loop through all active entitys
-	for (int i = 0; i < Interfaces::EntList->GetHighestEntityIndex(); i++)
-	{
-		// Get the entity
-		IClientEntity *pEntity = Interfaces::EntList->GetClientEntity(i);
-		player_info_t pinfo;
-
-		// The entity isn't some laggy peice of shit or something
-		if (pEntity &&  pEntity != pLocal)
-		{
-			if (Interfaces::Engine->GetPlayerInfo(i, &pinfo) && !pEntity->IsAlive() && !pEntity->IsDormant())
-			{
-				HANDLE obs = pEntity->GetObserverTargetHandle();
-
-				if (obs)
-				{
-					IClientEntity *pTarget = Interfaces::EntList->GetClientEntityFromHandle(obs);
-					player_info_t pinfo2;
-					if (pTarget)
-					{
-						if (Interfaces::Engine->GetPlayerInfo(pTarget->GetIndex(), &pinfo2))
-						{
-							char buf[255]; sprintf_s(buf, "%s: %s", pinfo.name, pinfo2.name);
-							RECT TextSize = Render::GetTextSize(Render::Fonts::ESP, buf);
-							Render::Clear(scrn.right - 260, (scrn.bottom / 2) + (16 * ayy), 260, 16, Color(0, 0, 0, 0));
-							Render::Text(scrn.right - TextSize.right - 4, (scrn.bottom / 2) + (16 * ayy), pTarget->GetIndex() == pLocal->GetIndex() ? Color(240, 0, 0, 200) : Color(255, 255, 255, 200), Render::Fonts::ESP, buf);
-							ayy++;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	Render::Outline(scrn.right - 261, (scrn.bottom / 2) - 1, 262, (16 * ayy) + 2, Color(23, 23, 23, 0));
-	Render::Outline(scrn.right - 260, (scrn.bottom / 2), 260, (16 * ayy), Color(90, 90, 90, 0));
 }
 
 //  Yeah m8
@@ -547,33 +500,40 @@ std::string CleanItemName(std::string name)
 }
 
 // Anything else: weapons, class state? idk
-void CEsp::DrawInfo(IClientEntity* pEntity, CEsp::ESPBox size)
+void CEsp::DrawInfo(IClientEntity* pEntity, CEsp::ESPBox box)
 {
-	std::vector<std::string> Info;
 
-	// Player Weapon ESP
-	IClientEntity* pWeapon = Interfaces::EntList->GetClientEntityFromHandle((HANDLE)pEntity->GetActiveWeaponHandle());
-	if (Menu::Window.VisualsTab.OptionsWeapon.GetState() && pWeapon)
-	{
-		ClientClass* cClass = (ClientClass*)pWeapon->GetClientClass();
-		if (cClass)
-		{
-			// Draw it
-			Info.push_back(CleanItemName(cClass->m_pNetworkName));
+	int bottom_pos = 0;
+	bool wa_enabled = false;
+	CBaseCombatWeapon* pWeapon = pEntity->GetWeapon();
+
+	if (pWeapon) {
+		int player_armor = pEntity->ArmorValue() > 100 ? 100 : pEntity->ArmorValue();
+		bool armor = false;
+		if (Menu::Window.VisualsTab.OptionsWeapon.GetState()) {
+
+			char buffer[128];
+			char* format = "";
+
+			format = "%s - %1.0f";
+			float ammo = pWeapon->GetAmmoInClip();
+			std::string noammo = "no ammo";
+			if (ammo < 1)
+			{
+				sprintf_s(buffer, format, pWeapon->GetGunName(), noammo);
+			}
+			else
+			{
+				sprintf_s(buffer, format, pWeapon->GetGunName(), ammo);
+			}
+
+			wa_enabled = true;
+
+			RECT size = get_text_size(buffer, Render::Fonts::ESP);
+			Render::Text(box.x + (box.w / 2) - (size.right / 2), box.y + box.h + (armor ? 2 : 2), Color(225, 225, 225, 255), Render::Fonts::ESP, buffer);
+			bottom_pos += 1;
+
 		}
-	}
-
-	if (Menu::Window.VisualsTab.OptionsInfo.GetState() && pEntity == BombCarrier)
-	{
-		Info.push_back("Bomb Carrier");
-	}
-
-	static RECT Size = Render::GetTextSize(Render::Fonts::Menu, "Text");
-	int i = 0;
-	for (auto Text : Info)
-	{
-		Render::Text(size.x + size.w + 3, size.y + (i*(Size.bottom + 2)), Color(255, 255, 255, 255), Render::Fonts::Menu, Text.c_str());
-		i++;
 	}
 }
 
