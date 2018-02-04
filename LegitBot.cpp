@@ -1,659 +1,459 @@
-#include "LegitBot.h"
-#include "RenderManager.h"
-#include "MathFunctions.h"
+#include "Legitbot.h"
 
-#define    HITGROUP_GENERIC    0
-#define    HITGROUP_HEAD        1
-#define    HITGROUP_CHEST        2
-#define    HITGROUP_STOMACH    3
-#define HITGROUP_LEFTARM    4    
-#define HITGROUP_RIGHTARM    5
-#define HITGROUP_LEFTLEG    6
-#define HITGROUP_RIGHTLEG    7
-#define HITGROUP_GEAR        10
+CLegitbot legitbot;
 
-void CLegitBot::Init()
+void CLegitbot::run(CUserCmd* m_pcmd, bool& send_packet)
 {
-	IsLocked = false;
-	TargetID = -1;
-	HitBox = -1;
-}
+	auto m_local = game::localdata.localplayer();
 
-void CLegitBot::Draw()
-{
-
-}
-
-static int CustomDelay = 0;
-static int CustomBreak = 0;
-
-void CLegitBot::Move(CUserCmd *pCmd, bool& bSendPacket)
-{
-	if (!Menu::Window.LegitBotTab.Active.GetState())
-		return;
-
-	IClientEntity* pLocal = hackManager.pLocal();
-	CBaseCombatWeapon* pWeapon = (CBaseCombatWeapon*)Interfaces::EntList->GetClientEntityFromHandle(pLocal->GetActiveWeaponHandle());
-
-	static int CustomAimTime = 0;
-	static int CustomAimStart = 0;
-	if (Menu::Window.LegitBotTab.AimbotEnable.GetState())
+	if (m_local && m_local->IsAlive())
 	{
-		if (StartAim > 0)
+		sync();
+
+		if (!active) return;
+
+		IClientEntity* m_target = nullptr;
+		bool find_target = true;
+
+		auto m_weapon = m_local->GetWeapon();
+		if (m_weapon)
 		{
-			if (CustomAimStart < (StartAim * 333))
+			if (m_weapon->GetAmmoInClip() == 0 || m_weapon->IsKnife()) return;
+			sync();
+		}
+		else return;
+
+		if (!game::functions.can_shoot()) return;
+
+		if (locked && target_id >= 0 && hitbox >= 0)
+		{
+			m_target = m_pEntityList->GetClientEntity(target_id);
+			if (m_target  && viable(m_target))
 			{
-				CustomAimStart++;
+				sync();
+				if (hitbox >= 0)
+				{
+					Vector ViewOffset = m_target->GetOrigin() + m_target->GetViewOffset();
+					Vector View; m_pEngine->GetViewAngles(View);
+					View += m_local->localPlayerExclusive()->GetAimPunchAngle() * recoil;
+					float nFoV = distance(ViewOffset, View, m_target, hitbox);
+					if (nFoV < fov)
+						find_target = false;
+				}
 			}
+		}
+		if (find_target)
+		{
+			target_id = 0;
+			m_target = nullptr;
+			hitbox = -1;
+			target_id = get_target();
+			if (target_id >= 0) m_target = m_pEntityList->GetClientEntity(target_id);
 			else
 			{
-				if (Aimtime > 0)
+				m_target = nullptr;
+				hitbox = -1;
+			}
+		}
+		sync();
+		if (target_id >= 0 && m_target)
+		{
+			sync();
+			if (keypress)
+			{
+				if (key >= 0 && !GUI.GetKeyState(key))
 				{
-					if (CustomAimTime < (Aimtime * 333))
-					{
-						DoAimbot(pCmd);
-						CustomAimTime++;
-					}
-					if (!GUI.GetKeyState(Menu::Window.LegitBotTab.AimbotKeyBind.GetKey()) || Menu::Window.LegitBotTab.AimbotAutoFire.GetState())
-					{
-						CustomAimTime = 0;
-						CustomAimStart = 0;
-					}
-				}
-				else
-				{
-					DoAimbot(pCmd);
-					CustomAimTime = 0;
-					CustomAimStart = 0;
+					target_id = -1;
+					m_target = nullptr;
+					hitbox = -1;
+					return;
 				}
 			}
 
-			if (!GUI.GetKeyState(Menu::Window.LegitBotTab.AimbotKeyBind.GetKey()) || Menu::Window.LegitBotTab.AimbotAutoFire.GetState())
+			Vector point;
+			if (multi_hitbox) point = game::functions.get_hitbox_location(m_target, besthitbox);
+			else point = game::functions.get_hitbox_location(m_target, hitbox);
+			if (aim(point, m_pcmd))
 			{
-				CustomAimStart = 0;
-				CustomAimTime = 0;
-			}
-		}
-		else
-		{
-			if (Aimtime > 0)
-			{
-				if (CustomAimTime < (Aimtime * 333))
+				if (autofire && !(m_pcmd->buttons & IN_ATTACK))
 				{
-					DoAimbot(pCmd);
-					CustomAimTime++;
+					m_pcmd->buttons |= IN_ATTACK;
 				}
-				if (!GUI.GetKeyState(Menu::Window.LegitBotTab.AimbotKeyBind.GetKey()) || Menu::Window.LegitBotTab.AimbotAutoFire.GetState())
-				{
-					CustomAimTime = 0;
-					CustomAimStart = 0;
-				}
-			}
-			else
-			{
-				DoAimbot(pCmd);
-				CustomAimTime = 0;
-				CustomAimStart = 0;
 			}
 		}
 	}
-
-	// Triggerbot
-	if (Menu::Window.LegitBotTab.TriggerEnable.GetState() && (!Menu::Window.LegitBotTab.TriggerKeyPress.GetState() || GUI.GetKeyState(Menu::Window.LegitBotTab.TriggerKeyBind.GetKey())))
-		DoTrigger(pCmd);
-
-	SyncWeaponSettings();
 }
 
-void CLegitBot::SyncWeaponSettings()
+bool CLegitbot::viable(IClientEntity* m_player)
 {
-	IClientEntity* pLocal = hackManager.pLocal();
-	CBaseCombatWeapon* pWeapon = (CBaseCombatWeapon*)Interfaces::EntList->GetClientEntityFromHandle(pLocal->GetActiveWeaponHandle());
+	auto m_local = game::localdata.localplayer();
+	if (!m_player) return false;
+	if (m_player->IsDormant()) return false;
+	if (!m_player->IsAlive()) return false;
+	if (m_player->GetIndex() == m_local->GetIndex()) return false;
 
-	if (!pWeapon)
-		return;
+	ClientClass *pClientClass = m_player->GetClientClass();
+	player_info_t pinfo;
 
-	if (GameUtils::IsPistol(pWeapon))
+	if (pClientClass->m_ClassID != (int)CSGOClassID::CCSPlayer) return false;
+	if (!m_pEngine->GetPlayerInfo(m_player->GetIndex(), &pinfo)) return false;
+	if (m_player->GetTeamNum() == m_local->GetTeamNum()) return false;
+	if (m_player->m_bGunGameImmunity()) return false;
+
+	return true;
+}
+
+void CLegitbot::sync()
+{
+	auto m_local = game::localdata.localplayer();
+	auto m_weapon = m_local->GetWeapon();
+
+	if (!m_weapon) return;
+
+	LegitConfig config = legitconfig;
+
+	if (m_weapon->m_bIsPistol())
 	{
-		Speed = Menu::Window.LegitBotTab.WeaponPistSpeed.GetValue() / 100;
-		FoV = Menu::Window.LegitBotTab.WeaponPistFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponPistRecoil.GetValue();
+		active = config.pistol.bActivated;
+		smoothing = config.pistol.flSmoothing;
+		fov = config.pistol.flFOV * 2;
+		recoil = config.pistol.flRecoil;
+		int speeds[] = { 20, 15, 10, 5, 0 };
+		delay = speeds[config.pistol.iReactionTime];
+		keypress = config.pistol.iAutoFireMode;
+		key = config.pistol.iAutoFireKey;
+		autofire = config.pistol.bAutoFire;
 
-		switch (Menu::Window.LegitBotTab.WeaponPistHitbox.GetIndex())
+		switch (config.pistol.iAutoFireTarget)
 		{
 		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Head);
+			multi_hitbox = false;
 			break;
 		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Neck);
+			multi_hitbox = false;
 			break;
 		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Chest);
+			multi_hitbox = false;
 			break;
 		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Stomach);
+			multi_hitbox = false;
 			break;
 		case 4:
-			Multihitbox = true;
+			hitbox = ((int)CSGOHitboxID::Pelvis);
+			multi_hitbox = false;
+			break;
+		case 5:
+			hitbox = ((int)CSGOHitboxID::LeftLowerArm);
+			multi_hitbox = false;
+			break;
+		case 6:
+			hitbox = ((int)CSGOHitboxID::RightLowerArm);
+			multi_hitbox = false;
+			break;
+		case 7:
+			hitbox = ((int)CSGOHitboxID::LeftShin);
+			multi_hitbox = false;
+			break;
+		case 8:
+			hitbox = ((int)CSGOHitboxID::RightShin);
+			multi_hitbox = false;
 			break;
 		}
-
-		Aimtime = Menu::Window.LegitBotTab.WeaponPistAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponPistStartAimtime.GetValue() / 10;
 	}
-	else if (GameUtils::IsSniper(pWeapon))
+	else if (m_weapon->m_bIsSmg())
 	{
-		Speed = Menu::Window.LegitBotTab.WeaponSnipSpeed.GetValue();
-		FoV = Menu::Window.LegitBotTab.WeaponSnipFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponSnipRecoil.GetValue();
+		active = config.smg.bActivated;
+		smoothing = config.smg.flSmoothing;
+		fov = config.smg.flFOV * 2;
+		recoil = config.smg.flRecoil;
+		int speeds[] = { 20, 15, 10, 5, 0 };
+		delay = speeds[config.smg.iReactionTime];
+		keypress = config.smg.iAutoFireMode;
+		key = config.smg.iAutoFireKey;
+		autofire = config.smg.bAutoFire;
 
-		switch (Menu::Window.LegitBotTab.WeaponSnipHitbox.GetIndex())
+		switch (config.smg.iAutoFireTarget)
 		{
 		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Head);
+			multi_hitbox = false;
 			break;
 		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Neck);
+			multi_hitbox = false;
 			break;
 		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Chest);
+			multi_hitbox = false;
 			break;
 		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Stomach);
+			multi_hitbox = false;
 			break;
 		case 4:
-			Multihitbox = true;
+			hitbox = ((int)CSGOHitboxID::Pelvis);
+			multi_hitbox = false;
+			break;
+		case 5:
+			hitbox = ((int)CSGOHitboxID::LeftLowerArm);
+			multi_hitbox = false;
+			break;
+		case 6:
+			hitbox = ((int)CSGOHitboxID::RightLowerArm);
+			multi_hitbox = false;
+			break;
+		case 7:
+			hitbox = ((int)CSGOHitboxID::LeftShin);
+			multi_hitbox = false;
+			break;
+		case 8:
+			hitbox = ((int)CSGOHitboxID::RightShin);
+			multi_hitbox = false;
 			break;
 		}
-
-		Aimtime = Menu::Window.LegitBotTab.WeaponSnipAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponSnipStartAimtime.GetValue() / 10;
 	}
-	else if (GameUtils::IsMachinegun(pWeapon))
+	else if (m_weapon->m_bIsShotgun())
 	{
-		Speed = Menu::Window.LegitBotTab.WeaponMGSpeed.GetValue() / 100;
-		FoV = Menu::Window.LegitBotTab.WeaponMGFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponMGRecoil.GetValue();
+		active = config.shotgun.bActivated;
+		smoothing = config.shotgun.flSmoothing;
+		fov = config.shotgun.flFOV * 2;
+		recoil = config.shotgun.flRecoil;
+		int speeds[] = { 20, 15, 10, 5, 0 };
+		delay = speeds[config.shotgun.iReactionTime];
+		keypress = config.shotgun.iAutoFireMode;
+		key = config.shotgun.iAutoFireKey;
+		autofire = config.shotgun.bAutoFire;
 
-		switch (Menu::Window.LegitBotTab.WeaponMGHitbox.GetIndex())
+		switch (config.shotgun.iAutoFireTarget)
 		{
 		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Head);
+			multi_hitbox = false;
 			break;
 		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Neck);
+			multi_hitbox = false;
 			break;
 		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Chest);
+			multi_hitbox = false;
 			break;
 		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Stomach);
+			multi_hitbox = false;
 			break;
 		case 4:
-			Multihitbox = true;
+			hitbox = ((int)CSGOHitboxID::Pelvis);
+			multi_hitbox = false;
+			break;
+		case 5:
+			hitbox = ((int)CSGOHitboxID::LeftLowerArm);
+			multi_hitbox = false;
+			break;
+		case 6:
+			hitbox = ((int)CSGOHitboxID::RightLowerArm);
+			multi_hitbox = false;
+			break;
+		case 7:
+			hitbox = ((int)CSGOHitboxID::LeftShin);
+			multi_hitbox = false;
+			break;
+		case 8:
+			hitbox = ((int)CSGOHitboxID::RightShin);
+			multi_hitbox = false;
 			break;
 		}
-
-		Aimtime = Menu::Window.LegitBotTab.WeaponMGAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponMGStartAimtime.GetValue() / 10;
 	}
-	else if (GameUtils::IsShotgun(pWeapon))
+	else if (m_weapon->m_bIsSniper())
 	{
-		Speed = Menu::Window.LegitBotTab.WeaponShotgunSpeed.GetValue() / 100;
-		FoV = Menu::Window.LegitBotTab.WeaponShotgunFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponShotgunRecoil.GetValue();
+		active = config.sniper.bActivated;
+		smoothing = config.sniper.flSmoothing;
+		fov = config.sniper.flFOV * 2;
+		recoil = config.sniper.flRecoil;
+		int speeds[] = { 20, 15, 10, 5, 0 };
+		delay = speeds[config.sniper.iReactionTime];
+		keypress = config.sniper.iAutoFireMode;
+		key = config.sniper.iAutoFireKey;
+		autofire = config.sniper.bAutoFire;
 
-		switch (Menu::Window.LegitBotTab.WeaponShotgunHitbox.GetIndex())
+		switch (config.sniper.iAutoFireTarget)
 		{
 		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Head);
+			multi_hitbox = false;
 			break;
 		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Neck);
+			multi_hitbox = false;
 			break;
 		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Chest);
+			multi_hitbox = false;
 			break;
 		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Stomach);
+			multi_hitbox = false;
 			break;
 		case 4:
-			Multihitbox = true;
+			hitbox = ((int)CSGOHitboxID::Pelvis);
+			multi_hitbox = false;
+			break;
+		case 5:
+			hitbox = ((int)CSGOHitboxID::LeftLowerArm);
+			multi_hitbox = false;
+			break;
+		case 6:
+			hitbox = ((int)CSGOHitboxID::RightLowerArm);
+			multi_hitbox = false;
+			break;
+		case 7:
+			hitbox = ((int)CSGOHitboxID::LeftShin);
+			multi_hitbox = false;
+			break;
+		case 8:
+			hitbox = ((int)CSGOHitboxID::RightShin);
+			multi_hitbox = false;
 			break;
 		}
-
-		Aimtime = Menu::Window.LegitBotTab.WeaponShotgunAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponShotgunStartAimtime.GetValue() / 10;
-	}
-	else if (GameUtils::IsMP(pWeapon))
-	{
-		Speed = Menu::Window.LegitBotTab.WeaponMpSpeed.GetValue() / 100;
-		FoV = Menu::Window.LegitBotTab.WeaponMpFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponMpRecoil.GetValue();
-
-		switch (Menu::Window.LegitBotTab.WeaponMpHitbox.GetIndex())
-		{
-		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
-			break;
-		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
-			break;
-		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
-			break;
-		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
-			break;
-		case 4:
-			Multihitbox = true;
-			break;
-		}
-
-		Aimtime = Menu::Window.LegitBotTab.WeaponMpAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponMpStartAimtime.GetValue() / 10;
 	}
 	else
 	{
-		Speed = Menu::Window.LegitBotTab.WeaponMainSpeed.GetValue() / 100;
-		FoV = Menu::Window.LegitBotTab.WeaponMainFoV.GetValue() * 2;
-		RecoilControl = Menu::Window.LegitBotTab.WeaponMainRecoil.GetValue();
+		active = config.rifle.bActivated;
+		smoothing = config.rifle.flSmoothing;
+		fov = config.rifle.flFOV * 2;
+		recoil = config.rifle.flRecoil;
+		int speeds[] = { 20, 15, 10, 5, 0 };
+		delay = speeds[config.rifle.iReactionTime];
+		keypress = config.rifle.iAutoFireMode;
+		key = config.rifle.iAutoFireKey;
+		autofire = config.rifle.bAutoFire;
 
-		switch (Menu::Window.LegitBotTab.WeaponMainHitbox.GetIndex())
+		switch (config.rifle.iAutoFireTarget)
 		{
 		case 0:
-			HitBox = ((int)CSGOHitboxID::Head);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Head);
+			multi_hitbox = false;
 			break;
 		case 1:
-			HitBox = ((int)CSGOHitboxID::Neck);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Neck);
+			multi_hitbox = false;
 			break;
 		case 2:
-			HitBox = ((int)CSGOHitboxID::Chest);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Chest);
+			multi_hitbox = false;
 			break;
 		case 3:
-			HitBox = ((int)CSGOHitboxID::Stomach);
-			Multihitbox = false;
+			hitbox = ((int)CSGOHitboxID::Stomach);
+			multi_hitbox = false;
 			break;
 		case 4:
-			Multihitbox = true;
+			hitbox = ((int)CSGOHitboxID::Pelvis);
+			multi_hitbox = false;
+			break;
+		case 5:
+			hitbox = ((int)CSGOHitboxID::LeftLowerArm);
+			multi_hitbox = false;
+			break;
+		case 6:
+			hitbox = ((int)CSGOHitboxID::RightLowerArm);
+			multi_hitbox = false;
+			break;
+		case 7:
+			hitbox = ((int)CSGOHitboxID::LeftShin);
+			multi_hitbox = false;
+			break;
+		case 8:
+			hitbox = ((int)CSGOHitboxID::RightShin);
+			multi_hitbox = false;
 			break;
 		}
-		Aimtime = Menu::Window.LegitBotTab.WeaponMainAimtime.GetValue() / 10;
-		StartAim = Menu::Window.LegitBotTab.WeaoponMainStartAimtime.GetValue() / 10;
 	}
 }
 
-void CLegitBot::DoAimbot(CUserCmd *pCmd)
-{
-	IClientEntity* pTarget = nullptr;
-	IClientEntity* pLocal = hackManager.pLocal();
-	bool FindNewTarget = true;
-
-	CBaseCombatWeapon* pWeapon = (CBaseCombatWeapon*)Interfaces::EntList->GetClientEntityFromHandle(pLocal->GetActiveWeaponHandle());
-	if (pWeapon)
-	{
-		if (pWeapon->GetAmmoInClip() == 0 || !GameUtils::IsBallisticWeapon(pWeapon))
-		{
-			return;
-		}
-		SyncWeaponSettings();
-
-	}
-	else
-		return;
-
-	if (IsLocked && TargetID >= 0 && HitBox >= 0)
-	{
-		pTarget = Interfaces::EntList->GetClientEntity(TargetID);
-		if (pTarget  && TargetMeetsRequirements(pTarget))
-		{
-			SyncWeaponSettings();
-			if (HitBox >= 0)
-			{
-				Vector ViewOffset = pLocal->GetOrigin() + pLocal->GetViewOffset();
-				Vector View; Interfaces::Engine->GetViewAngles(View);
-				if (pLocal->GetVelocity().Length() > 45.f);
-				View += pLocal->localPlayerExclusive()->GetAimPunchAngle() * RecoilControl;
-				float nFoV = FovToPlayer(ViewOffset, View, pTarget, HitBox);
-				if (nFoV < FoV)
-					FindNewTarget = false;
-			}
-		}
-	}
-
-	if (FindNewTarget)
-	{
-		TargetID = 0;
-		pTarget = nullptr;
-		HitBox = -1;
-
-		TargetID = GetTargetCrosshair();
-
-		if (TargetID >= 0)
-		{
-			pTarget = Interfaces::EntList->GetClientEntity(TargetID);
-		}
-		else
-		{
-			pTarget = nullptr;
-			HitBox = -1;
-		}
-	}
-
-	SyncWeaponSettings();
-
-	if (TargetID >= 0 && pTarget)
-	{
-		SyncWeaponSettings();
-
-		if (Menu::Window.LegitBotTab.AimbotKeyPress.GetState())
-		{
-			int Key = Menu::Window.LegitBotTab.AimbotKeyBind.GetKey();
-			if (Key >= 0 && !GUI.GetKeyState(Key))
-			{
-				TargetID = -1;
-				pTarget = nullptr;
-				HitBox = -1;
-				return;
-			}
-		}
-
-		Vector AimPoint;
-
-		if (Multihitbox)
-		{
-			AimPoint = GetHitboxPosition(pTarget, besthitbox);
-		}
-		else
-		{
-			AimPoint = GetHitboxPosition(pTarget, HitBox);
-		}
-
-		if (AimAtPoint(pLocal, AimPoint, pCmd))
-		{
-			if (Menu::Window.LegitBotTab.AimbotAutoFire.GetState() && !(pCmd->buttons & IN_ATTACK))
-			{
-				pCmd->buttons |= IN_ATTACK;
-			}
-		}
-	}
-}
-
-bool CLegitBot::TargetMeetsTriggerRequirements(IClientEntity* pEntity)
-{
-
-	if (pEntity && pEntity->IsDormant() == false && pEntity->IsAlive() && pEntity->GetIndex() != hackManager.pLocal()->GetIndex())
-	{
-
-		ClientClass *pClientClass = pEntity->GetClientClass();
-		player_info_t pinfo;
-		if (pClientClass->m_ClassID == (int)CSGOClassID::CCSPlayer && Interfaces::Engine->GetPlayerInfo(pEntity->GetIndex(), &pinfo))
-		{
-
-			if (pEntity->GetTeamNum() != hackManager.pLocal()->GetTeamNum() || Menu::Window.LegitBotTab.AimbotFriendlyFire.GetState())
-			{
-
-				if (!pEntity->HasGunGameImmunity())
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-
-	return false;
-}
-
-void CLegitBot::DoTrigger(CUserCmd *pCmd)
-{
-	IClientEntity* pLocal = hackManager.pLocal();
-
-	CBaseCombatWeapon* pWeapon = (CBaseCombatWeapon*)Interfaces::EntList->GetClientEntityFromHandle(pLocal->GetActiveWeaponHandle());
-	if (pWeapon)
-	{
-		if (pWeapon->GetAmmoInClip() == 0 || !GameUtils::IsBallisticWeapon(pWeapon))
-		{
-			return;
-		}
-	}
-	else
-		return;
-
-	Vector ViewAngles;
-	Interfaces::Engine->GetViewAngles(ViewAngles);
-	ViewAngles += pLocal->localPlayerExclusive()->GetAimPunchAngle() * 2.f;
-
-	Vector fowardVec;
-	AngleVectors(ViewAngles, &fowardVec);
-	fowardVec.NormalizeInPlace();
-	fowardVec *= 10000;
-
-	Vector start = pLocal->GetOrigin() + pLocal->GetViewOffset();
-	Vector end = start + fowardVec, endScreen;
-
-	trace_t Trace;
-
-	Ray_t ray;
-
-	CTraceFilter traceFilter;
-	traceFilter.pSkip = pLocal;
-
-	ray.Init(start, end);
-	Interfaces::Trace->TraceRay(ray, MASK_SHOT, &traceFilter, &Trace);
-
-	if (Trace.m_pEnt && 0 < Trace.hitgroup <= 7)
-	{
-		if (TargetMeetsTriggerRequirements(Trace.m_pEnt))
-		{
-			pCmd->buttons |= IN_ATTACK;
-		}
-	}
-
-	static bool WasFiring = false;
-	CSWeaponInfo* WeaponInfo = pWeapon->GetCSWpnData();
-	if (!WeaponInfo->bFullAuto && Menu::Window.LegitBotTab.AimbotAutoPistol.GetState())
-	{
-		if (pCmd->buttons & IN_ATTACK)
-		{
-			if (WasFiring)
-			{
-				pCmd->buttons &= ~IN_ATTACK;
-			}
-		}
-
-		WasFiring = pCmd->buttons & IN_ATTACK ? true : false;
-	}
-}
-
-bool CLegitBot::TargetMeetsRequirements(IClientEntity* pEntity)
-{
-	if (pEntity && pEntity->IsDormant() == false && pEntity->IsAlive() && pEntity->GetIndex() != hackManager.pLocal()->GetIndex())
-	{
-
-		ClientClass *pClientClass = pEntity->GetClientClass();
-		player_info_t pinfo;
-		if (pClientClass->m_ClassID == (int)CSGOClassID::CCSPlayer && Interfaces::Engine->GetPlayerInfo(pEntity->GetIndex(), &pinfo))
-		{
-
-			if (pEntity->GetTeamNum() != hackManager.pLocal()->GetTeamNum() || Menu::Window.LegitBotTab.AimbotFriendlyFire.GetState())
-			{
-
-				if (!pEntity->HasGunGameImmunity() && GameUtils::IsVisible(hackManager.pLocal(), pEntity, HitBox))
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-float Get3dDistance(Vector me, Vector ent)
+float distance_3d(Vector me, Vector ent)
 {
 	return sqrt(pow(double(ent.x - me.x), 2.0) + pow(double(ent.y - me.y), 2.0) + pow(double(ent.z - me.z), 2.0));
 }
 
-float CLegitBot::FovToPlayer(Vector ViewOffSet, Vector View, IClientEntity* pEntity, int aHitBox)
+float CLegitbot::distance(Vector offset, Vector view, IClientEntity* m_player, int hitbox)
 {
 	CONST FLOAT MaxDegrees = 180.0f;
-
-	Vector Angles = View;
-
-	Vector Origin = ViewOffSet;
-
+	Vector Angles = view;
+	Vector Origin = offset;
 	Vector Delta(0, 0, 0);
-
 	Vector Forward(0, 0, 0);
-
-	AngleVectors(Angles, &Forward);
-	Vector AimPos = GetHitboxPosition(pEntity, aHitBox);
-
+	game::math.angle_vectors(Angles, &Forward);
+	Vector AimPos = game::functions.get_hitbox_location(m_player, hitbox);
 	VectorSubtract(AimPos, Origin, Delta);
-
-	Normalize(Delta, Delta);
-
-	float Distance = Get3dDistance(Origin, AimPos);
-
-	float pitch = sin(Forward.x - Delta.x) * Distance;
-	float yaw = sin(Forward.y - Delta.y) * Distance;
-	float zaw = sin(Forward.z - Delta.z) * Distance;
-
-	float mag = sqrt((pitch*pitch) + (yaw*yaw) + (zaw*zaw));
-	return mag;
+	game::math.normalize(Delta, Delta);
+	FLOAT DotProduct = Forward.Dot(Delta);
+	return (acos(DotProduct) * (MaxDegrees / PI));
 }
 
-int CLegitBot::GetTargetCrosshair()
+bool CLegitbot::aim(Vector point, CUserCmd *pCmd)
 {
-	SyncWeaponSettings();
-	int target = -1;
-
-
-	IClientEntity* pLocal = hackManager.pLocal();
-	Vector ViewOffset = pLocal->GetOrigin() + pLocal->GetViewOffset();
-	Vector View; Interfaces::Engine->GetViewAngles(View);
-	View += pLocal->localPlayerExclusive()->GetAimPunchAngle() * 2.f;
-
-	for (int i = 0; i < Interfaces::EntList->GetHighestEntityIndex(); i++)
+	auto m_local = game::localdata.localplayer();
+	if (point.Length() == 0) return false;
+	Vector angles;
+	if (!game::functions.visible(m_local, m_pEntityList->GetClientEntity(target_id), hitbox)) return false;
+	Vector src = m_local->GetOrigin() + m_local->GetViewOffset();
+	game::math.calculate_angle(src, point, angles);
+	game::math.normalize_vector(angles);
+	if (recoil)
 	{
-		IClientEntity *pEntity = Interfaces::EntList->GetClientEntity(i);
-
-		if (TargetMeetsRequirements(pEntity))
+		Vector AimPunch = m_local->localPlayerExclusive()->GetAimPunchAngle();
+		if (AimPunch.Length2D() > 0 && AimPunch.Length2D() < 150)
 		{
-			if (Multihitbox)
+			angles -= AimPunch * 2;
+			game::math.normalize_vector(angles);
+		}
+	}
+	locked = true;
+	Vector delta = angles - pCmd->viewangles;
+	bool return_data = false;
+	if (delta.Length() > smoothing)
+	{
+		game::math.normalize(delta, delta);
+		delta *= smoothing;
+	}
+	else return_data = true;
+	pCmd->viewangles += delta;
+	m_pEngine->SetViewAngles(pCmd->viewangles);
+	return return_data;
+}
+
+int CLegitbot::get_target()
+{
+	sync();
+	int target = -1;
+	float minFoV = fov;
+
+	IClientEntity* m_local = game::localdata.localplayer();
+	Vector offset = m_local->GetOrigin() + m_local->GetViewOffset();
+	Vector view; m_pEngine->GetViewAngles(view);
+	view += m_local->localPlayerExclusive()->GetAimPunchAngle() * 2.f;
+
+	for (int i = 1; i < m_pGlobals->maxClients; i++)
+	{
+		IClientEntity *m_entity = m_pEntityList->GetClientEntity(i);
+		if (viable(m_entity))
+		{
+			if (hitbox >= 0)
 			{
-
-				float fov1 = FovToPlayer(ViewOffset, View, pEntity, 0);
-				float fov2 = FovToPlayer(ViewOffset, View, pEntity, 4);
-				float fov3 = FovToPlayer(ViewOffset, View, pEntity, 6);
-
-				if (fov1 < FoV || fov2 < FoV && fov1 < FoV || fov3 < FoV)
+				float dist = distance(offset, view, m_entity, 0);
+				if (!game::functions.visible(m_local, m_entity, hitbox)) continue;
+				if (dist < minFoV)
 				{
-					FoV = fov1;
+					minFoV = dist;
 					target = i;
-					besthitbox = 0;
-				}
-
-				if (fov2 < FoV || fov1 < FoV && fov2 < FoV || fov3 < FoV)
-				{
-					FoV = fov2;
-					target = i;
-					besthitbox = 4;
-				}
-
-				if (fov3 < FoV || fov1 < FoV && fov3 < FoV || fov2 < FoV)
-				{
-					FoV = fov3;
-					target = i;
-					besthitbox = 6;
-				}
-
-			}
-			else
-			{
-				int NewHitBox = HitBox;
-				if (NewHitBox >= 0)
-				{
-					float fov = FovToPlayer(ViewOffset, View, pEntity, 0);
-					if (fov < FoV)
-					{
-						FoV = fov;
-						target = i;
-					}
 				}
 			}
 		}
 	}
 
 	return target;
-}
-
-bool CLegitBot::AimAtPoint(IClientEntity* pLocal, Vector point, CUserCmd *pCmd)
-{
-	if (point.Length() == 0) return false;
-
-	Vector angles;
-	Vector src = pLocal->GetOrigin() + pLocal->GetViewOffset();
-
-	CalcAngle(src, point, angles);
-	GameUtils::NormaliseViewAngle(angles);
-
-	if (angles[0] != angles[0] || angles[1] != angles[1])
-	{
-		return false;
-	}
-
-	if (RecoilControl > 0)
-	{
-		Vector AimPunch = pLocal->localPlayerExclusive()->GetAimPunchAngle();
-		if (AimPunch.Length2D() > 0 && AimPunch.Length2D() < 150)
-		{
-			angles -= AimPunch * RecoilControl;
-			GameUtils::NormaliseViewAngle(angles);
-		}
-	}
-
-	IsLocked = true;
-
-	Vector shit = angles - pCmd->viewangles;
-	bool v = false;
-	GameUtils::NormaliseViewAngle(shit);
-	if (shit.Length() > Speed)
-	{
-		Normalize(shit, shit);
-		shit *= Speed;
-	}
-	else
-	{
-		v = true;
-	}
-
-	pCmd->viewangles += shit;
-	Interfaces::Engine->SetViewAngles(pCmd->viewangles);
-
-	return v;
 }

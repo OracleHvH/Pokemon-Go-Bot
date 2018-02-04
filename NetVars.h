@@ -50,7 +50,7 @@ public:
 	{
 		if (!instance) instance = new NetvarManager;
 		return instance;
-	}
+}
 
 	void CreateDatabase();
 	void DestroyDatabase();

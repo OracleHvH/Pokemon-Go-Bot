@@ -31,7 +31,7 @@ void CNetVar::RetrieveClasses()
 	U::EnableLogFile(NETVAR_FILENAME);
 #endif
 
-	ClientClass *clientClass = Interfaces::Client->GetAllClasses();
+	ClientClass *clientClass = m_pClient->GetAllClasses();
 
 	if (!clientClass)
 		return;

@@ -30,7 +30,13 @@ enum UIControlTypes
 	UIC_KeyBind,
 	UIC_ComboBox,
 	UIC_ItemSelector,
-	UIC_Button
+	UIC_Button,
+	UIC_MultiBox,
+	UIC_GroupBox,
+	UIC_ListBox,
+	UIC_ColorSelector,
+	UIC_Label,
+	UIC_TextField
 };
 
 // Base class for GUI controls
@@ -47,9 +53,16 @@ public:
 	int FileControlType;
 	int m_iWidth, m_iHeight;
 
+
+	POINT GetAbsolutePos();
 	bool Flag(int f);
-protected:
 	int m_x, m_y;
+
+	CControl* parent_group;
+	int g_tab = 0;
+
+	bool should_function = true;
+protected:
 	int m_Flags;
 	CWindow* parent;
 
@@ -58,22 +71,20 @@ protected:
 	virtual void Draw(bool) = 0;
 	virtual void OnUpdate() = 0;
 	virtual void OnClick() = 0;
-
-	POINT GetAbsolutePos();
 };
 
 // A GUI Control Container
 class CTab
 {
-	friend class CControl;
-	friend class CGUI;
-	friend class CWindow;
+friend class CControl;
+friend class CGUI;
+friend class CWindow;
 public:
 	void SetTitle(std::string name);
 	void RegisterControl(CControl* control);
+	std::vector<CControl*> Controls;
 private:
 	std::string Title;
-	std::vector<CControl*> Controls;
 	CWindow* parent;
 };
 
@@ -90,24 +101,40 @@ public:
 	void Close();
 	void Toggle();
 	bool isOpen();
+	int get_iWidth()
+	{
+		return m_iWidth;
+	}
+	int get_iHeight()
+	{
+		return m_iHeight;
+	}
+	int get_x()
+	{
+		return m_x;
+	}
+	int get_y()
+	{
+		return m_y;
+	}
 	CControl* GetFocus();
-
+	
 	void RegisterTab(CTab* Tab);
 
 	RECT GetClientArea();
 	RECT GetTabArea();
 	RECT GetDragArea();
-
+	CControl* FocusedControl;
+		
 private:
 	void DrawControls();
 
-	bool m_bIsOpen;
-
+	bool m_bIsOpen = false;
+	
 	std::vector<CTab*> Tabs;
 	CTab* SelectedTab;
 
 	bool IsFocusingControl;
-	CControl* FocusedControl;
 
 	std::string Title;
 	int m_x;
@@ -130,7 +157,7 @@ public:
 	void Update();
 
 	// Draws a single window
-	bool DrawWindow(CWindow* window);
+	bool DrawWindow(CWindow* window, int menu);
 
 	// Registers a window
 	void RegisterWindow(CWindow* window);
@@ -168,10 +195,4 @@ private:
 
 	// KeyBinds -> Windows Map
 	std::map<int, CWindow*> WindowBinds;
-
 };
-
-namespace Globals
-{
-	extern float MenuAlpha2;
-}

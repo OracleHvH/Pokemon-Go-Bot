@@ -1,100 +1,138 @@
 #include "Chams.h"
-#include "offsets.h"
-#include "SDK.h"
-#include "Interfaces.h"
+#include <fstream>
 
-void InitKeyValues(KeyValues* keyValues, char* name)
+Chams* chams;
+
+Chams::Chams()
 {
-	DWORD dwFunction = (DWORD)Offsets::Functions::KeyValues_KeyValues;
-	__asm
-	{
-		push name
-			mov ecx, keyValues
-			call dwFunction
-	}
+	std::ofstream("csgo\\materials\\yeti_regular.vmt") << R"#("VertexLitGeneric"
+{
+  "$basetexture" "vgui/white_additive"
+  "$ignorez"      "0"
+  "$envmap"       ""
+  "$nofog"        "1"
+  "$model"        "1"
+  "$nocull"       "0"
+  "$selfillum"    "1"
+  "$halflambert"  "1"
+  "$znearer"      "0"
+  "$flat"         "1"
+  "$reflectivity" "[1 1 1]"
+}
+)#";
+	std::ofstream("csgo\\materials\\yeti_ignorez.vmt") << R"#("VertexLitGeneric"
+{
+  "$basetexture" "vgui/white_additive"
+  "$ignorez"      "1"
+  "$envmap"       ""
+  "$nofog"        "1"
+  "$model"        "1"
+  "$nocull"       "0"
+  "$selfillum"    "1"
+  "$halflambert"  "1"
+  "$znearer"      "0"
+  "$flat"         "1"
+  "$reflectivity" "[1 1 1]"
+}
+)#";
+	std::ofstream("csgo\\materials\\yeti_flat.vmt") << R"#("UnlitGeneric"
+{
+  "$basetexture" "vgui/white_additive"
+  "$ignorez"      "0"
+  "$envmap"       ""
+  "$nofog"        "1"
+  "$model"        "1"
+  "$nocull"       "0"
+  "$selfillum"    "1"
+  "$halflambert"  "1"
+  "$znearer"      "0"
+  "$flat"         "1"
+}
+)#";
+	std::ofstream("csgo\\materials\\yeti_flat_ignorez.vmt") << R"#("UnlitGeneric"
+{
+  "$basetexture" "vgui/white_additive"
+  "$ignorez"      "1"
+  "$envmap"       ""
+  "$nofog"        "1"
+  "$model"        "1"
+  "$nocull"       "0"
+  "$selfillum"    "1"
+  "$halflambert"  "1"
+  "$znearer"      "0"
+  "$flat"         "1"
+}
+)#";
+
+	materialRegular = m_pMaterialSystem->FindMaterial("yeti_regular", TEXTURE_GROUP_MODEL);
+	materialRegularIgnoreZ = m_pMaterialSystem->FindMaterial("yeti_ignorez", TEXTURE_GROUP_MODEL);
+	materialFlatIgnoreZ = m_pMaterialSystem->FindMaterial("yeti_flat_ignorez", TEXTURE_GROUP_MODEL);
+	materialFlat = m_pMaterialSystem->FindMaterial("yeti_flat", TEXTURE_GROUP_MODEL);
 }
 
-void LoadFromBuffer(KeyValues* keyValues, char const *resourceName, const char *pBuffer)
+Chams::~Chams()
 {
-	DWORD dwFunction = (DWORD)Offsets::Functions::KeyValues_LoadFromBuffer;
-
-	__asm
-	{
-		push 0
-			push 0
-			push 0
-			push pBuffer
-			push resourceName
-			mov ecx, keyValues
-			call dwFunction
-	}
+	std::remove(XorStr("csgo\\materials\\yeti_regular.vmt"));
+	std::remove(XorStr("csgo\\materials\\yeti_ignorez.vmt"));
+	std::remove(XorStr("csgo\\materials\\yeti_flat.vmt"));
+	std::remove(XorStr("csgo\\materials\\yeti_flat_ignorez.vmt"));
 }
 
-IMaterial *CreateMaterial(bool shouldIgnoreZ, bool isLit, bool isWireframe) //credits to ph0ne
+void Chams::override_material(bool ignoreZ, bool flat, bool wireframe, bool glass, const Color& rgba)
 {
-	static int created = 0;
+	IMaterial* material = nullptr;
 
-	static const char tmp[] =
-	{
-		"\"%s\"\
-		\n{\
-		\n\t\"$basetexture\" \"vgui/white_additive\"\
-		\n\t\"$envmap\" \"\"\
-		\n\t\"$model\" \"1\"\
-		\n\t\"$flat\" \"1\"\
-		\n\t\"$nocull\" \"0\"\
-		\n\t\"$selfillum\" \"1\"\
-		\n\t\"$halflambert\" \"1\"\
-		\n\t\"$nofog\" \"0\"\
-		\n\t\"$ignorez\" \"%i\"\
-		\n\t\"$znearer\" \"0\"\
-		\n\t\"$wireframe\" \"%i\"\
-        \n}\n"
-	};
-
-	char* baseType = (isLit == true ? "VertexLitGeneric" : "UnlitGeneric");
-	char material[512];
-	sprintf_s(material, sizeof(material), tmp, baseType, (shouldIgnoreZ) ? 1 : 0, (isWireframe) ? 1 : 0);
-
-	char name[512];
-	sprintf_s(name, sizeof(name), "#Error_Chams%i.vmt", created);
-	++created;
-
-	KeyValues* keyValues = (KeyValues*)malloc(sizeof(KeyValues));
-	InitKeyValues(keyValues, baseType);
-	LoadFromBuffer(keyValues, name, material);
-
-	IMaterial *createdMaterial = Interfaces::MaterialSystem->CreateMaterial(name, keyValues);
-	createdMaterial->IncrementReferenceCount();
-
-	return createdMaterial;
-}
-
-void ForceMaterial(Color color, IMaterial* material, bool useColor, bool forceMaterial)
-{
-	if (useColor)
-	{
-		float temp[3] =
-		{
-			color.r(),
-			color.g(),
-			color.b()
-		};
-
-		temp[0] /= 255.f;
-		temp[1] /= 255.f;
-		temp[2] /= 255.f;
-
-
-		float alpha = color.a();
-
-		Interfaces::RenderView->SetBlend(1.0f);
-		Interfaces::RenderView->SetColorModulation(temp);
+	if (flat) {
+		if (ignoreZ)
+			material = materialFlatIgnoreZ;
+		else
+			material = materialFlat;
+	}
+	else {
+		if (ignoreZ)
+			material = materialRegularIgnoreZ;
+		else
+			material = materialRegular;
 	}
 
-	if (forceMaterial)
-		Interfaces::ModelRender->ForcedMaterialOverride(material);
-	else
-		Interfaces::ModelRender->ForcedMaterialOverride(NULL);
 
+	if (glass) {
+		material = materialFlat;
+		material->AlphaModulate(0.45f);
+	}
+	else {
+		material->AlphaModulate(
+			rgba.a() / 255.0f);
+	}
+
+	material->SetMaterialVarFlag(MATERIAL_VAR_WIREFRAME, wireframe);
+	material->ColorModulate(
+		rgba.r() / 255.0f,
+		rgba.g() / 255.0f,
+		rgba.b() / 255.0f);
+
+	m_pModelRender->ForcedMaterialOverride(material);
+}
+
+void Chams::override_material(bool ignoreZ, bool flat, const float alpha)
+{
+	IMaterial* material = nullptr;
+
+	if (flat) {
+		if (ignoreZ)
+			material = materialFlatIgnoreZ;
+		else
+			material = materialFlat;
+	}
+	else {
+		if (ignoreZ)
+			material = materialRegularIgnoreZ;
+		else
+			material = materialRegular;
+	}
+
+	material->SetMaterialVarFlag(MATERIAL_VAR_WIREFRAME, false);
+	material->AlphaModulate(alpha / 255.0f);
+
+	m_pModelRender->ForcedMaterialOverride(material);
 }

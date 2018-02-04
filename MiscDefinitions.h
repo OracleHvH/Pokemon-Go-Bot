@@ -1,6 +1,4 @@
-/*
-Syn's AyyWare Framework 2015
-*/
+
 
 #pragma once
 
@@ -8,22 +6,11 @@ Syn's AyyWare Framework 2015
 #include "NetVars.h"
 #include "Vector.h"
 
-//#define GetModuleInformation        K32GetModuleInformation
-
 //-------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------
 
-class Interface
-{
-public:
-	template< typename Function > inline Function VFunc(int Index)
-	{
-		PDWORD* VTablePointer = (PDWORD*)this;
-		PDWORD VTableFunctionBase = *VTablePointer;
-		DWORD dwAddress = VTableFunctionBase[Index];
-		return (Function)(dwAddress);
-	}
-};
+typedef unsigned int VPANEL;
+typedef void(*pfnDemoCustomDataCallback)(unsigned char *pData, size_t iSize);
 
 // For calling VMT functions in our classes
 template< typename Function > Function call_vfunc(PVOID Base, DWORD Index)
@@ -34,11 +21,31 @@ template< typename Function > Function call_vfunc(PVOID Base, DWORD Index)
 	return (Function)(dwAddress);
 }
 
+inline void**& getvtable(void* inst, size_t offset = 0)
+{
+
+	return *reinterpret_cast<void***>((size_t)inst + offset);
+}
+inline const void** getvtable(const void* inst, size_t offset = 0)
+{
+	if (!inst && !offset)
+		return NULL;
+	return *reinterpret_cast<const void***>((size_t)inst + offset);
+}
+template< typename Fn >
+inline Fn getvfunc(const void* inst, size_t index, size_t offset = 0)
+{
+	if (!inst && offset == 0)
+		return NULL;
+
+	return reinterpret_cast<Fn>(getvtable(inst, offset)[index]);
+}
+
 // Netvar shit
 #define dwThis (DWORD)this
 #define NETVAR(type,offset) *(type*)(dwThis + offset)
 #define CNETVAR(type,offset) (type)(dwThis + offset)
-
+#define nigvar( x, x1, x2 ) *(x*)( (DWORD)x1 + (DWORD)x2 )
 //CNETVAR_FUNC - creates a netvar function in a class that returns value(s) [type=class type & return type] [name=function name] [netvar_crc=crc32 of netvar of choice]
 #define CNETVAR_FUNC(type,name,netvar_crc) \
 	type name() \
@@ -54,6 +61,15 @@ template< typename Function > Function call_vfunc(PVOID Base, DWORD Index)
 		static DWORD dwObserverTarget=NetVar.GetNetVar(netvar_crc); \
 		return CNETVAR(type,dwObserverTarget); \
 	}
+
+
+
+enum
+{
+	PITCH = 0,	// up / down
+	YAW,		// left / right
+	ROLL		// fall over
+};
 
 // Lifestates
 enum source_lifestates
@@ -95,34 +111,45 @@ enum playercontrols
 
 typedef float matrix3x4[3][4];
 
-/*typedef struct _MODULEINFO
+struct matrix3x4_t
 {
-	LPVOID lpBaseOfDll;
-	DWORD SizeOfImage;
-	LPVOID EntryPoint;
-} MODULEINFO, *LPMODULEINFO;
+	float m_flMatVal[3][4];
+};
 
-BOOL
-WINAPI
-GetModuleInformation
-(
-	_In_ HANDLE hProcess,
-	_In_ HMODULE hModule,
-	_Out_ LPMODULEINFO lpmodinfo,
-	_In_ DWORD cb
-	);*/
-
-class player_info_t
-{
+typedef struct player_info_s {
+private:
+	DWORD __pad0[2];
 public:
-	char pad_0x0000[0x10]; //0x0000
-	char name[64]; //0x0010 
-	char pad_0x0050[0x40]; //0x0050
-	__int32 userID; //0x0090 
-	int xuidlow;
-	int xuidhigh;
-	char guid[32]; //0x0094 
-	char pad_0x00B4[0x180]; //0x00B4
+	int m_nXuidLow;
+	int m_nXuidHigh;
+	char name[128];
+	int m_nUserID;
+	char m_szSteamID[33];
+	UINT m_nSteam3ID;
+	char m_szFriendsName[128];
+	bool m_bIsFakePlayer;
+	bool m_bIsHLTV;
+	DWORD m_dwCustomFiles[4];
+	BYTE m_FilesDownloaded;
+private:
+	int __pad1;
+} player_info_t;
+
+typedef void* (*CreateInterfaceFn)(const char* szInterface, int* pReturnCode);
+
+enum class FontFeature
+{
+	FONT_FEATURE_ANTIALIASED_FONTS = 1,
+	FONT_FEATURE_DROPSHADOW_FONTS = 2,
+	FONT_FEATURE_OUTLINE_FONTS = 6,
+};
+
+enum class FontDrawType
+{
+	FONT_DRAW_DEFAULT = 0,
+	FONT_DRAW_NONADDITIVE,
+	FONT_DRAW_ADDITIVE,
+	FONT_DRAW_TYPE_COUNT = 2,
 };
 
 enum SolidType_t
@@ -154,12 +181,70 @@ enum SolidFlags_t
 	FSOLID_MAX_BITS = 10
 };
 
+enum MaterialVarFlags_t
+{
+	MATERIAL_VAR_DEBUG = (1 << 0),
+	MATERIAL_VAR_NO_DEBUG_OVERRIDE = (1 << 1),
+	MATERIAL_VAR_NO_DRAW = (1 << 2),
+	MATERIAL_VAR_USE_IN_FILLRATE_MODE = (1 << 3),
+
+	MATERIAL_VAR_VERTEXCOLOR = (1 << 4),
+	MATERIAL_VAR_VERTEXALPHA = (1 << 5),
+	MATERIAL_VAR_SELFILLUM = (1 << 6),
+	MATERIAL_VAR_ADDITIVE = (1 << 7),
+	MATERIAL_VAR_ALPHATEST = (1 << 8),
+	MATERIAL_VAR_MULTIPASS = (1 << 9),
+	MATERIAL_VAR_ZNEARER = (1 << 10),
+	MATERIAL_VAR_MODEL = (1 << 11),
+	MATERIAL_VAR_FLAT = (1 << 12),
+	MATERIAL_VAR_NOCULL = (1 << 13),
+	MATERIAL_VAR_NOFOG = (1 << 14),
+	MATERIAL_VAR_IGNOREZ = (1 << 15),
+	MATERIAL_VAR_DECAL = (1 << 16),
+	MATERIAL_VAR_ENVMAPSPHERE = (1 << 17),
+	MATERIAL_VAR_NOALPHAMOD = (1 << 18),
+	MATERIAL_VAR_ENVMAPCAMERASPACE = (1 << 19),
+	MATERIAL_VAR_BASEALPHAENVMAPMASK = (1 << 20),
+	MATERIAL_VAR_TRANSLUCENT = (1 << 21),
+	MATERIAL_VAR_NORMALMAPALPHAENVMAPMASK = (1 << 22),
+	MATERIAL_VAR_NEEDS_SOFTWARE_SKINNING = (1 << 23),
+	MATERIAL_VAR_OPAQUETEXTURE = (1 << 24),
+	MATERIAL_VAR_ENVMAPMODE = (1 << 25),
+	MATERIAL_VAR_SUPPRESS_DECALS = (1 << 26),
+	MATERIAL_VAR_HALFLAMBERT = (1 << 27),
+	MATERIAL_VAR_WIREFRAME = (1 << 28),
+	MATERIAL_VAR_ALLOWALPHATOCOVERAGE = (1 << 29),
+	MATERIAL_VAR_IGNORE_ALPHA_MODULATION = (1 << 30),
+	MATERIAL_VAR_VERTEXFOG = (1 << 31),
+
+	// NOTE: Only add flags here that either should be read from
+	// .vmts or can be set directly from client code. Other, internal
+	// flags should to into the flag enum in imaterialinternal.h
+};
+
+enum PreviewImageRetVal_t
+{
+	MATERIAL_PREVIEW_IMAGE_BAD = 0,
+	MATERIAL_PREVIEW_IMAGE_OK,
+	MATERIAL_NO_PREVIEW_IMAGE,
+};
+
+enum MaterialPropertyTypes_t
+{
+	MATERIAL_PROPERTY_NEEDS_LIGHTMAP = 0,					// bool
+	MATERIAL_PROPERTY_OPACITY,								// int (enum MaterialPropertyOpacityTypes_t)
+	MATERIAL_PROPERTY_REFLECTIVITY,							// vec3_t
+	MATERIAL_PROPERTY_NEEDS_BUMPED_LIGHTMAPS				// bool
+};
+
 // KeyValues
 class KeyValues
 {
 public:
 	char _pad[0x20];//csgo, for css its a diff size
 };
+
+typedef unsigned short ModelInstanceHandle_t;
 
 // Memes
 struct ModelRenderInfo_t
@@ -198,51 +283,15 @@ inline bool IsFinite(vec_t f)
 	return ((FloatBits(f) & 0x7F800000) != 0x7F800000);
 }
 
-struct model_t;
+class model_t;
+
+class IMatRenderContext;
 
 enum OverrideType_t
 {
 	OVERRIDE_NORMAL = 0,
 	OVERRIDE_BUILD_SHADOWS,
 	OVERRIDE_DEPTH_WRITE,
-};
-
-enum MaterialVarFlags_t
-{
-	MATERIAL_VAR_DEBUG = (1 << 0),
-	MATERIAL_VAR_NO_DEBUG_OVERRIDE = (1 << 1),
-	MATERIAL_VAR_NO_DRAW = (1 << 2),
-	MATERIAL_VAR_USE_IN_FILLRATE_MODE = (1 << 3),
-
-	MATERIAL_VAR_VERTEXCOLOR = (1 << 4),
-	MATERIAL_VAR_VERTEXALPHA = (1 << 5),
-	MATERIAL_VAR_SELFILLUM = (1 << 6),
-	MATERIAL_VAR_ADDITIVE = (1 << 7),
-	MATERIAL_VAR_ALPHATEST = (1 << 8),
-	MATERIAL_VAR_MULTIPASS = (1 << 9),
-	MATERIAL_VAR_ZNEARER = (1 << 10),
-	MATERIAL_VAR_MODEL = (1 << 11),
-	MATERIAL_VAR_FLAT = (1 << 12),
-	MATERIAL_VAR_NOCULL = (1 << 13),
-	MATERIAL_VAR_NOFOG = (1 << 14),
-	MATERIAL_VAR_IGNOREZ = (1 << 15),
-	MATERIAL_VAR_DECAL = (1 << 16),
-	MATERIAL_VAR_ENVMAPSPHERE = (1 << 17),
-	MATERIAL_VAR_NOALPHAMOD = (1 << 18),
-	MATERIAL_VAR_ENVMAPCAMERASPACE = (1 << 19),
-	MATERIAL_VAR_BASEALPHAENVMAPMASK = (1 << 20),
-	MATERIAL_VAR_TRANSLUCENT = (1 << 21),
-	MATERIAL_VAR_NORMALMAPALPHAENVMAPMASK = (1 << 22),
-	MATERIAL_VAR_NEEDS_SOFTWARE_SKINNING = (1 << 23),
-	MATERIAL_VAR_OPAQUETEXTURE = (1 << 24),
-	MATERIAL_VAR_ENVMAPMODE = (1 << 25),
-	MATERIAL_VAR_SUPPRESS_DECALS = (1 << 26),
-	MATERIAL_VAR_HALFLAMBERT = (1 << 27),
-	MATERIAL_VAR_WIREFRAME = (1 << 28),
-
-	// NOTE: Only add flags here that either should be read from
-	// .vmts or can be set directly from client code. Other, internal
-	// flags should to into the flag enum in IMaterialInternal.h
 };
 
 #define	FL_ONGROUND				(1<<0)	// At rest / on the ground
@@ -284,25 +333,24 @@ enum MaterialVarFlags_t
 
 enum ClientFrameStage_t
 {
-	FRAME_UNDEFINED = -1,			// (haven't run any frames yet)
+	FRAME_UNDEFINED = -1,
 	FRAME_START,
-
-	// A network packet is being recieved
 	FRAME_NET_UPDATE_START,
-	// Data has been received and we're going to start calling PostDataUpdate
 	FRAME_NET_UPDATE_POSTDATAUPDATE_START,
-	// Data has been received and we've called PostDataUpdate on all data recipients
 	FRAME_NET_UPDATE_POSTDATAUPDATE_END,
-	// We've received all packets, we can now do interpolation, prediction, etc..
 	FRAME_NET_UPDATE_END,
-
-	// We're about to start rendering the scene
 	FRAME_RENDER_START,
-	// We've finished rendering the scene.
 	FRAME_RENDER_END
 };
 
-// ConVar flags
+class ICollideable
+{
+public:
+	virtual void pad0();
+	virtual const Vector& OBBMins() const;
+	virtual const Vector& OBBMaxs() const;
+};
+
 #define FCVAR_NONE				0 
 
 #define FCVAR_UNREGISTERED		(1<<0)

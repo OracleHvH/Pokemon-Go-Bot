@@ -1,25 +1,9 @@
-/*
-Syn's AyyWare Framework 2015
-*/
 
 // Credits to Valve and Shad0w
 
 #pragma once
 
 struct RecvProp;
-
-class DVariant
-{
-public:
-	union
-	{
-		float	m_Float;
-		long	m_Int;
-		char	*m_pString;
-		void	*m_pData;
-		float	m_Vector[3];
-	};
-};
 
 namespace SourceEngine
 {
@@ -34,6 +18,19 @@ namespace SourceEngine
 		DPT_DataTable,
 		DPT_Int64,
 		DPT_NUMSendPropTypes
+	};
+};
+
+class DVariant
+{
+public:
+	union
+	{
+		float	m_Float;
+		long	m_Int;
+		char	*m_pString;
+		void	*m_pData;
+		float	m_Vector[3];
 	};
 };
 
@@ -78,15 +75,11 @@ struct RecvProp
 	const char				*m_pParentArrayPropName;
 };
 
-
-class IClientNetworkable;
-typedef IClientNetworkable*   (*CreateClientClassFn)(int entnum, int serialNum);
-typedef IClientNetworkable*   (*CreateEventFn)();
 class ClientClass
 {
 public:
-	CreateClientClassFn m_pCreateFn;
-	CreateEventFn* m_pCreateEventFn;
+	void*			m_pCreateFn;
+	void*			m_pCreateEventFn;
 	char			*m_pNetworkName;
 	RecvTable		*m_pRecvTable;
 	ClientClass		*m_pNext;

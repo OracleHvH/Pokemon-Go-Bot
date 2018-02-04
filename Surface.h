@@ -1,5 +1,5 @@
 /*
-Syn's AyyWare Framework 2015
+Andrew's Ares Framework 2015
 */
 
 #pragma once
@@ -52,10 +52,7 @@ public:
 		typedef void(__thiscall* OriginalFn)(PVOID, int, int, int, int);
 		call_vfunc< OriginalFn >(this, Offsets::VMT::Surface_DrawFilledRect)(this, x0, y0, x1, y1);
 	}
-	inline void DrawTexturedRect(int x, int y, int w, int h) {
-		typedef void(__thiscall *OrigFn)(void *, int, int, int, int);
-		call_vfunc<OrigFn>(this, 41)(this, x, y, w, h);
-	}
+
 	void DrawOutlinedRect(int x0, int y0, int x1, int y1)
 	{
 		typedef void(__thiscall* OriginalFn)(PVOID, int, int, int, int);
@@ -107,19 +104,19 @@ public:
 	void DrawSetTexture(int textureID)
 	{
 		typedef void(__thiscall* oDrawSetTextColor)(PVOID, int);
-		return call_vfunc< oDrawSetTextColor >(this, Offsets::VMT::Surface_DrawSetTexture)(this, textureID);
+		return call_vfunc< oDrawSetTextColor >(this, 38)(this, textureID);
 	}
 
 	void DrawSetTextureRGBA(int textureID, unsigned char  const* colors, int w, int h)
 	{
 		typedef void(__thiscall* oDrawSetTextColor)(PVOID, int, unsigned char  const*, int, int);
-		return call_vfunc< oDrawSetTextColor >(this, Offsets::VMT::Surface_DrawSetTextureRGBA)(this, textureID, colors, w, h);
+		return call_vfunc< oDrawSetTextColor >(this, 37)(this, textureID, colors, w, h);
 	}
 
 	int CreateNewTextureID(bool procedural)
 	{
 		typedef int(__thiscall* oDrawSetTextColor)(PVOID, bool);
-		return call_vfunc< oDrawSetTextColor >(this, Offsets::VMT::Surface_CreateNewTextureID)(this, procedural);
+		return call_vfunc< oDrawSetTextColor >(this, 43)(this, procedural);
 	}
 
 	void DrawTexturedPolygon(int vtxCount, FontVertex_t *vtx, bool bClipVertices = true)
@@ -146,6 +143,20 @@ public:
 		call_vfunc< OriginalFn >(this, Offsets::VMT::Surface_GetTextSize)(this, font, text, wide, tall);
 	}
 
+	void DrawColoredCircle(int centerx, int centery, float radius, int r, int g, int b, int a)
+	{
+		typedef void(__thiscall* OriginalFn)(void*, int, int, float, int, int, int, int);
+		getvfunc<OriginalFn>(this, 162)(this, centerx, centery, radius, r, g, b, a);
+	}
+
+	void DrawFilledCircle(int centerx, int centery, float radius, int r, int g, int b, int a)
+	{
+		for (int i = 0; i < radius; i++)
+		{
+			DrawColoredCircle(centerx, centery, i, r, g, b, a);
+		}
+	}
+
 	void DrawOutlinedCircle(int x, int y, int r, int seg)
 	{
 		typedef void(__thiscall* oDrawOutlinedCircle)(PVOID, int, int, int, int);
@@ -156,5 +167,42 @@ public:
 	{
 		typedef void(__thiscall* oSurfaceGetCursorPos)(PVOID, int&, int&);
 		return call_vfunc< oSurfaceGetCursorPos >(this, Offsets::VMT::Surface_SurfaceGetCursorPos)(this, x, y);
+	}
+
+	inline void DrawTexturedRect(int x, int y, int w, int h) {
+		typedef void(__thiscall *OrigFn)(void *, int, int, int, int);
+		call_vfunc<OrigFn>(this, 41)(this, x, y, w, h);
+	}
+
+	void DrawT(int X, int Y, Color Color, int Font, bool Center, const char* _Input, ...)
+	{
+		int apple = 0;
+		char Buffer[2048] = { '\0' };
+
+		va_list Args;
+
+		va_start(Args, _Input);
+		vsprintf_s(Buffer, _Input, Args);
+		va_end(Args);
+
+		size_t Size = strlen(Buffer) + 1;
+
+		wchar_t* WideBuffer = new wchar_t[Size];
+
+		mbstowcs_s(0, WideBuffer, Size, Buffer, Size - 1);
+
+		int Width = 0, Height = 0;
+
+		if (Center)
+		{
+			GetTextSize(Font, WideBuffer, Width, Height);
+		}
+
+		DrawSetTextColor(Color.r(), Color.g(), Color.b(), Color.a());
+		DrawSetTextFont(Font);
+		DrawSetTextPos(X - (Width / 2), Y);
+		DrawPrintText(WideBuffer, wcslen(WideBuffer));
+
+		return;
 	}
 };

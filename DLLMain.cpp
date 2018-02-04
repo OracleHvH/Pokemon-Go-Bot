@@ -1,101 +1,143 @@
-// General shit
 #include "DLLMain.h"
-#include "Utilities.h"
-
-// Injection stuff
-#include "INJ/ReflectiveLoader.h"
-
-// Stuff to initialise
 #include "Offsets.h"
 #include "Interfaces.h"
 #include "Hooks.h"
-#include "RenderManager.h"
-#include "Hacks.h"
+#include "DrawManager.h"
 #include "Menu.h"
-#include "MiscHacks.h"
 #include "Dumping.h"
-#include "AntiAntiAim.h"
-#include "hitmarker.h"
+#include "mac.h"
+#include "Backtracking.h"
+#include "Vaults.h"
 
+#include <Windows.h>
+#include <iostream>
+#include <fstream>
+#include <TlHelp32.h>
+#include <string>
+#include <fstream>
 
-// Used as part of the reflective DLL injection
 extern HINSTANCE hAppInstance;
 
-// Our DLL Instance
 HINSTANCE HThisModule;
 bool DoUnload;
 
-UCHAR szFileSys[255], szVolNameBuff[255];
-DWORD dwMFL, dwSysFlags;
-DWORD dwSerial;
-LPCTSTR szHD = "C:\\";
+void setFontSize(int FontSize)
+{
+	CONSOLE_FONT_INFOEX info = { 0 };
+	info.cbSize = sizeof(info);
+	info.dwFontSize.Y = FontSize;
+	info.FontWeight = FW_NORMAL;
+	wcscpy(info.FaceName, L"Tahoma");
+	SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), NULL, &info);
+}
 
-// Our thread we use to setup everything we need
-// Everything appart from code in hooks get's called from inside 
-// here.
+bool is_file_exist(const char *fileName)
+{
+	std::ifstream infile(fileName);
+	return infile.good();
+}
+
+void create_folder(const char * path) {
+	if (!CreateDirectory(path, NULL)) {
+		return;
+	}
+}
+
+void initialize_configs_file() {
+
+	create_folder("yeti");
+	create_folder("yeti\\cfg");
+
+	if (!is_file_exist("yeti\\cfg\\yeti_configs.txt")) {
+		std::ofstream("yeti\\cfg\\yeti_configs.txt");
+	}
+}
 
 int InitialThread()
 {
 
-	//Utilities::OpenConsole("");
+	initialize_configs_file();
 
-	// Intro banner with info
-	PrintMetaHeader();
-
-	//---------------------------------------------------------
-	// Initialise all our shit
-	Offsets::Initialise(); // Set our VMT offsets and do any pattern scans
-	Interfaces::Initialise(); // Get pointers to the valve classes
-	NetVar.RetrieveClasses(); // Setup our NetVar manager (thanks shad0w bby)
+	Offsets::Initialise();
+	interfaces.initialise();
+	NetVar.RetrieveClasses();
 	NetvarManager::Instance()->CreateDatabase();
-	Render::Initialise();
-	hitmarker::singleton()->initialize();
-	Hacks::SetupHacks();
 	Menu::SetupMenu();
+	skinchanger.set_skins();
 	Hooks::Initialise();
-	ApplyNetVarsHooks();
 
-	// Dumping
-	//Dump::DumpClassIds();
-
-	//---------------------------------------------------------
-	Utilities::Log("injected");
-
-	// While our cheat is running
 	while (DoUnload == false)
-	{
 		Sleep(1000);
-	}
 
-	RemoveNetVarsHooks();
 	Hooks::UndoHooks();
-	Sleep(2000); // Make sure none of our hooks are running
+	Sleep(2000);
 	FreeLibraryAndExitThread(HThisModule, 0);
 
 	return 0;
 }
 
-// DllMain
-// Entry point for our module
-BOOL WINAPI DllMain(
-	_In_ HINSTANCE hinstDLL,
-	_In_ DWORD     fdwReason,
-	_In_ LPVOID    lpvReserved
-)
+const wchar_t *getwc(const char *c) {
+	const size_t cSize = strlen(c) + 1;
+	std::wstring wc(cSize, L'#');
+	mbstowcs(&wc[0], c, cSize);
+	return wc.data();
+}
+
+bool process_exists(const wchar_t* name, uint32_t& pid)
 {
-	switch (fdwReason)
+	auto snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (snapshot == INVALID_HANDLE_VALUE)
+		return false;
+
+	auto entry = PROCESSENTRY32{ sizeof(PROCESSENTRY32) };
+
+	if (Process32First(snapshot, &entry)) {
+		do {
+			if (!wcscmp(getwc(entry.szExeFile), name)) {
+				pid = entry.th32ProcessID;
+				CloseHandle(snapshot);
+				return true;
+			}
+		} while (Process32Next(snapshot, &entry));
+	}
+	CloseHandle(snapshot);
+	return false;
+}
+
+uint32_t get_proc_id_by_name(char* process_name)
+{
+	PROCESSENTRY32   pe32;
+	HANDLE         hSnapshot = NULL;
+
+	pe32.dwSize = sizeof(PROCESSENTRY32);
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (Process32First(hSnapshot, &pe32))
 	{
-	case DLL_QUERY_HMODULE:
-		if (lpvReserved != NULL)
-			*(HMODULE *)lpvReserved = hAppInstance;
-		break;
-	case DLL_PROCESS_ATTACH:
-		HThisModule = hinstDLL;
-		CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitialThread, NULL, NULL, NULL);
-		break;
-	case DLL_PROCESS_DETACH:
-		break;
+		do {
+			if (strcmp(pe32.szExeFile, process_name) == 0)
+				break;
+		} while (Process32Next(hSnapshot, &pe32));
 	}
 
+	if (hSnapshot != INVALID_HANDLE_VALUE)
+		CloseHandle(hSnapshot);
+
+	return pe32.th32ProcessID;
+}
+
+
+BOOL WINAPI DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
+{
+	if (dwReason == DLL_PROCESS_ATTACH)
+	{
+		DisableThreadLibraryCalls(hModule);
+
+
+			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InitialThread, NULL, NULL, NULL);
+
+		return TRUE;
+	}
 	return TRUE;
 }

@@ -1,41 +1,34 @@
 #pragma once
 
-#include "Hacks.h"
+#include "Hooks.h"
 
-class CLegitBot : public CHack
+class CLegitbot
 {
 public:
-	void Init();
-	void Draw();
-	void Move(CUserCmd *pCmd, bool& bSendPacket);
+	void run(CUserCmd* m_pcmd, bool& send_packet);
 private:
-	// Targetting
-	int GetTargetCrosshair();
-	bool TargetMeetsRequirements(IClientEntity* pEntity);
-	bool TargetMeetsTriggerRequirements(IClientEntity* pEntity);
-	float FovToPlayer(Vector ViewOffSet, Vector View, IClientEntity* pEntity, int HitBox);
-	bool AimAtPoint(IClientEntity* pLocal, Vector point, CUserCmd *pCmd);
+	int get_target();
+	bool viable(IClientEntity* m_player);
+	float distance(Vector offset, Vector view, IClientEntity* m_player, int hitbox);
+	bool aim(Vector point, CUserCmd *m_pcmd);
 
-	void SyncWeaponSettings();
+	void sync();
 
-	// Functionality
-	void DoAimbot(CUserCmd *pCmd);
-	void DoTrigger(CUserCmd *pCmd);
-
-	// Aimbot
-	bool IsLocked;
-	int TargetID;
-	int HitBox;
-	Vector AimPoint;
-	bool Multihitbox;
-	float StartAim;
-	float Aimtime;
+	bool locked = false;
+	int target_id = -1;
+	int hitbox = -1;
+	Vector point;
+	bool multi_hitbox;
+	float smart_aim;
 	int besthitbox;
 
-	float Speed;
-	float FoV;
-	float RecoilControl;
-
-	bool shoot;
-
+	bool active;
+	float smoothing;
+	float fov;
+	float recoil;
+	int delay;
+	bool keypress;
+	int key;
+	bool autofire;
 };
+extern CLegitbot legitbot;

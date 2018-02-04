@@ -1,14 +1,19 @@
-/*
-Syn's AyyWare Framework 2015
-*/
-
 #pragma once
-#include "SDK.h"
 
-void InitKeyValues(KeyValues* keyValues, char* name);
+#include "Hooks.h"
 
-void LoadFromBuffer(KeyValues* keyValues, char const *resourceName, const char *pBuffer);
+class Chams {
+public:
+	void override_material(bool ignoreZ, bool flat, bool wireframe, bool glass, const Color& rgba);
+	void override_material(bool ignoreZ, bool flat, const float alpha);
 
-void ForceMaterial(Color color, IMaterial* material, bool useColor = true, bool forceMaterial = true);
+	Chams();
+	~Chams();
 
-IMaterial *CreateMaterial(bool shouldIgnoreZ, bool isLit = true, bool isWireframe = false);
+	IMaterial* materialRegular = nullptr;
+	IMaterial* materialRegularIgnoreZ = nullptr;
+	IMaterial* materialFlatIgnoreZ = nullptr;
+	IMaterial* materialFlat = nullptr;
+};
+
+extern Chams* chams;

@@ -1,6 +1,3 @@
-/*
-Syn's AyyWare Framework 2015
-*/
 
 // Credits Valve / Shad0w
 

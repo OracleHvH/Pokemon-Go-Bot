@@ -1,12 +1,30 @@
-/*
-Syn's AyyWare Framework 2015
-*/
+
 
 #pragma once
 
 #include "MiscDefinitions.h"
-#include "ClientRecvProps.h"
-#include "offsets.h"
+#include "MiscDefinitions.h"
+
+class CGlobalVarsBase
+{
+public:
+	float    realtime;
+	int      framecount;
+	float    absoluteframetime;
+	float    absoluteframestarttimestddev;
+	float    curtime;
+	float    frametime;
+	int      maxClients;
+	int      tickcount;
+	float    interval_per_tick;
+	float    interpolation_amount;
+	int      simTicksThisFrame;
+	int      network_protocol;
+	void*    pSaveData;
+	bool     m_bClient;
+	int      nTimestampNetworkingBase;
+	int      nTimestampRandomizeWindow;
+};
 
 class IBaseClientDLL
 {
@@ -14,7 +32,7 @@ public:
 
 	ClientClass* GetAllClasses(void)
 	{
-		typedef ClientClass* (__thiscall* OriginalFn)(PVOID); //Anything inside a VTable is a __thiscall unless it completly disregards the thisptr. You can also call them as __stdcalls, but you won't have access to the __thisptr.
-		return call_vfunc<OriginalFn>(this, Offsets::VMT::CHL_GetAllClasses)(this); //Return the pointer to the head CClientClass.
+		typedef ClientClass* (__thiscall* OriginalFn)(PVOID);
+		return call_vfunc<OriginalFn>(this, 8)(this);
 	}
 };

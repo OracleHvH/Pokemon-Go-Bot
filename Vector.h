@@ -4,13 +4,37 @@
 #define CHECK_VALID( _v ) 0
 #define Assert( _exp ) ((void)0)
 
-#define rad(a) a * 0.01745329251
-#define deg(a) a * 57.295779513082
-
 #include <Windows.h>
 #include <math.h>
 #include <emmintrin.h>
 #include <xmmintrin.h>
+
+// from the leaked sdk
+
+#define  FORCEINLINE			__forceinline
+
+typedef float vec_t;
+typedef float vec2_t[2];
+typedef float vec3_t[3];
+
+inline vec_t BitsToFloat(unsigned long i)
+{
+	return *reinterpret_cast<vec_t*>(&i);
+}
+
+#define FLOAT32_NAN_BITS     (unsigned long)0x7FC00000
+#define FLOAT32_NAN          BitsToFloat( FLOAT32_NAN_BITS )
+
+#define PI 3.14159265358979323846f
+#define DEG2RAD( x ) ( ( float )( x ) * ( float )( ( float )( PI ) / 180.0f ) )
+#define RAD2DEG( x ) ( ( float )( x ) * ( float )( 180.0f / ( float )( PI ) ) )
+#define RADPI 57.295779513082f
+
+
+#define VEC_T_NAN FLOAT32_NAN
+
+#define rad(a) a * 0.01745329251
+#define deg(a) a * 57.295779513082
 
 inline void SinCosX(const float rad, float &sin, float &cos)
 {
@@ -106,17 +130,6 @@ inline void SinCosX(const float rad, float &sin, float &cos)
 	cos = _mm_cvtss_f32(_mm_xor_ps(_mm_add_ps(_mm_sub_ps(y1, ysin1), _mm_sub_ps(y2, ysin2)), sign_bit_cos));
 }
 
-// from the leaked sdk
-
-#define  FORCEINLINE			__forceinline
-
-typedef float vec_t;
-
-inline vec_t BitsToFloat(unsigned long i)
-{
-	return *reinterpret_cast<vec_t*>(&i);
-}
-
 inline float sqrt2(float sqr)
 {
 	float root = 0;
@@ -129,11 +142,6 @@ inline float sqrt2(float sqr)
 
 	return root;
 }
-
-#define FLOAT32_NAN_BITS     (unsigned long)0x7FC00000
-#define FLOAT32_NAN          BitsToFloat( FLOAT32_NAN_BITS )
-
-#define VEC_T_NAN FLOAT32_NAN
 
 class Vector
 {
@@ -159,7 +167,6 @@ public:
 
 	bool operator==(const Vector& v) const;
 	bool operator!=(const Vector& v) const;
-	bool operator!() { return !x && !y && !z; }
 
 	FORCEINLINE Vector& operator+=(const Vector& v);
 	FORCEINLINE Vector& operator-=(const Vector& v);
@@ -169,38 +176,10 @@ public:
 	FORCEINLINE Vector& operator/=(float s);
 	FORCEINLINE Vector& operator+=(float fl);
 	FORCEINLINE Vector& operator-=(float fl);
-	inline float Long() { return sqrt2(x*x + y*y + z*z); }
 
 	void Negate();
 
 	inline vec_t Length() const;
-
-	inline Vector Angle(Vector* up = 0)
-	{
-		if (!x && !y)
-			return Vector(0, 0, 0);
-
-		float roll = 0;
-
-		if (up)
-		{
-			Vector left = (*up).Cross(*this);
-
-			roll = deg(atan2f(left.z, (left.y * x) - (left.x * y)));
-		}
-
-		return Vector(deg(atan2f(-z, sqrtf(x*x + y*y))), deg(atan2f(y, x)), roll);
-	}
-
-	inline Vector Forward()
-	{
-		float cp, cy, sp, sy;
-
-		SinCosX(rad(x), sp, cp);
-		SinCosX(rad(y), sy, cy);
-
-		return Vector(cp*cy, cp*sy, -sp);
-	}
 
 	FORCEINLINE vec_t LengthSqr(void) const
 	{
@@ -213,12 +192,6 @@ public:
 			y > -tolerance && y < tolerance &&
 			z > -tolerance && z < tolerance);
 	}
-
-	float Vector::Size()
-	{
-		return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
-	}
-
 
 	vec_t NormalizeInPlace();
 	Vector Normalized() const;
@@ -245,6 +218,7 @@ public:
 	void MulAdd(const Vector& a, const Vector& b, float scalar);
 
 	vec_t Dot(const Vector& vOther) const;
+	inline float Dot2(Vector a) { return x*a.x + y*a.y + z*a.z; }
 
 	Vector& operator=(const Vector& vOther);
 
@@ -263,9 +237,13 @@ public:
 
 	Vector Min(const Vector& vOther) const;
 	Vector Max(const Vector& vOther) const;
-};
 
-using QAngle = Vector;
+	Vector Angle(Vector* up = 0);
+
+	inline void Rotate2D(const float &f);
+
+	inline Vector Forward() const;
+};
 
 FORCEINLINE Vector ReplicateToVector(float x)
 {
@@ -318,8 +296,6 @@ inline vec_t Vector::operator[](int i) const
 	return ((vec_t*)this)[i];
 }
 
-
-
 inline vec_t* Vector::Base()
 {
 	return (vec_t*)this;
@@ -355,6 +331,28 @@ FORCEINLINE void VectorCopy(const Vector& src, Vector& dst)
 	dst.x = src.x;
 	dst.y = src.y;
 	dst.z = src.z;
+}
+
+void inline SineCos(float radians, float *sine, float *cosine)
+{
+	*sine = sin(radians);
+	*cosine = cos(radians);
+}
+
+inline void Vector::Rotate2D(const float &f)
+{
+	float _x, _y;
+
+	float* s;
+	float* c;
+
+	SineCos(DEG2RAD(f), s, c);
+
+	_x = x;
+	_y = y;
+
+	x = (_x * *c) - (_y * *s);
+	y = (_x * *s) + (_y * *c);
 }
 
 inline void Vector::CopyToArray(float* rgfl) const
@@ -577,6 +575,22 @@ inline Vector Vector::Max(const Vector& vOther) const
 		z > vOther.z ? z : vOther.z);
 }
 
+inline Vector Vector::Angle(Vector* up)
+{
+	if (!x && !y)
+		return Vector(0, 0, 0);
+
+	float roll = 0;
+
+	if (up)
+	{
+		Vector left = (*up).Cross(*this);
+		roll = atan2f(left.z, (left.y * x) - (left.x * y)) * 180.0f / 3.14159265358979323846f;
+	}
+
+	return Vector(atan2f(-z, sqrt2(x*x + y*y)) * 180.0f / 3.14159265358979323846f, atan2f(y, x) * 180.0f / 3.14159265358979323846f, roll);
+}
+
 inline Vector Vector::operator-(void) const
 {
 	return Vector(-x, -y, -z);
@@ -665,6 +679,29 @@ inline void VectorMax(const Vector& a, const Vector& b, Vector& result)
 	result.z = max(a.z, b.z);
 }
 
+inline Vector Vector::Normalized() const
+{
+	Vector res = *this;
+	float l = res.Length();
+	if (l != 0.0f) {
+		res /= l;
+	}
+	else {
+		res.x = res.y = res.z = 0.0f;
+	}
+	return res;
+}
+
+inline Vector Vector::Forward() const
+{
+	float cp, cy, sp, sy;
+
+	SinCosX(rad(x), sp, cp);
+	SinCosX(rad(y), sy, cy);
+
+	return Vector(cp*cy, cp*sy, -sp);
+}
+
 
 class VectorAligned : public Vector
 {
@@ -681,7 +718,4 @@ public:
 
 	float w;
 };
-
-
-
 #endif // VECTOR_H

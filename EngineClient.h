@@ -1,25 +1,23 @@
 #pragma once
 
-#include "MiscDefinitions.h"
-#include "ClientRecvProps.h"
-#include "offsets.h"
-#include "Vector.h"
 
+#define FLOW_OUTGOING 0		
+#define FLOW_INCOMING 1
+#define MAX_FLOWS 2	
 
-#define FLOW_OUTGOING	0		
-#define FLOW_INCOMING	1
-#define MAX_FLOWS		2
 class INetChannelInfo
 {
 public:
 
-	enum {
+	enum
+	{
 		GENERIC = 0,	// must be first and is default group
 		LOCALPLAYER,	// bytes for local player entity update
 		OTHERPLAYERS,	// bytes for other players update
 		ENTITIES,		// all other entity bytes
 		SOUNDS,			// game sounds
 		EVENTS,			// event messages
+		TEMPENTS,		// temp entities
 		USERMESSAGES,	// user messages
 		ENTMESSAGES,	// entity messages
 		VOICE,			// voice data
@@ -48,6 +46,7 @@ public:
 	virtual float		GetAvgData(int flow) const = 0;	 // data flow in bytes/sec
 	virtual float		GetAvgPackets(int flow) const = 0; // avg packets/sec
 	virtual int			GetTotalData(int flow) const = 0;	 // total flow in/out in bytes
+	virtual int			GetTotalPackets(int flow) const = 0;
 	virtual int			GetSequenceNr(int flow) const = 0;	// last send seq number
 	virtual bool		IsValidPacket(int flow, int frame_number) const = 0; // true if packet was not lost/dropped/chocked/flushed
 	virtual float		GetPacketTime(int flow, int frame_number) const = 0; // time when packet was send
@@ -60,43 +59,35 @@ public:
 
 	virtual float		GetTimeoutSeconds() const = 0;
 };
+class ISPSharedMemory;
+class CGamestatsData;
+class CSteamAPIContext;
+struct Frustum_t;
 
 class IVEngineClient
 {
 public:
-
-	int GetPlayerForUserID(int UserID) {
-		using Original = int(__thiscall*)(PVOID, int);
-		return call_vfunc<Original>(this, 9)(this, UserID);
-	}
-
-	void ClientCmd(const char *szCmdString)
-	{
-		typedef void(__thiscall* oClientCmd)(PVOID, const char*);
-		return call_vfunc<oClientCmd>(this, 7)(this, szCmdString);
-	}
-
 	void GetScreenSize(int& width, int& height)
 	{
 		typedef void(__thiscall* oGetScreenSize)(PVOID, int&, int&);
 		return call_vfunc< oGetScreenSize >(this, Offsets::VMT::Engine_GetScreenSize)(this, width, height);
 	}
+
 	bool GetPlayerInfo(int ent_num, player_info_t *pinfo)
 	{
 		typedef bool(__thiscall* oGetPlayerInfo)(PVOID, int, player_info_t*);
 		return call_vfunc< oGetPlayerInfo >(this, Offsets::VMT::Engine_GetPlayerInfo)(this, ent_num, pinfo);
 	}
+
+	inline int GetPlayerForUserID(int UserID) {
+		return call_vfunc<bool(__thiscall *)(void *, int)>(this, 9)(this, UserID);
+	}
+
 	int GetLocalPlayer()
 	{
 		typedef int(__thiscall* oLocal)(PVOID);
 		return call_vfunc< oLocal >(this, Offsets::VMT::Engine_GetLocalPlayer)(this);
 	}
-
-	void ExecuteClientCmd(const char* szCmdString) {
-		typedef void(__thiscall *OrigFn)(void*, const char *);
-		call_vfunc<OrigFn>(this, 108)(this, szCmdString);
-	}
-
 	float Time()
 	{
 		typedef float(__thiscall* oTime)(PVOID);
@@ -137,10 +128,8 @@ public:
 		typedef void(__thiscall* oClientCmdUnres)(PVOID, const char*);
 		return call_vfunc<oClientCmdUnres>(this, Offsets::VMT::Engine_ClientCmd_Unrestricted)(this, cmd);
 	}
-
-	INetChannelInfo* GetNetChannelInfo()
-	{
-		typedef INetChannelInfo*(__thiscall* OriginalFn)(PVOID);
-		return call_vfunc< OriginalFn >(this, 78)(this);
+	INetChannelInfo	*GetNetChannelInfo() {
+		typedef INetChannelInfo*(__thiscall *OrigFn)(void*);
+		return call_vfunc<OrigFn>(this, 78)(this);
 	}
 };

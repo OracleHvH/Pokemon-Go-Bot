@@ -38,17 +38,7 @@ RECT CWindow::GetClientArea()
 	client.left = m_x + 8;
 	client.top = m_y + 1 + 27;
 	client.right = m_iWidth - 4 - 12;
-	client.bottom = m_iHeight - 2 - 8 - 26 + 420;
-	return client;
-}
-
-RECT CWindow::GetTabArea()
-{
-	RECT client;
-	client.left = m_x + 8;
-	client.top = m_y + 1 + 27;
-	client.right = m_iWidth - 4 - 12;
-	client.bottom = 29;
+	client.bottom = m_iHeight - 2 - 8 - 26;
 	return client;
 }
 
@@ -59,6 +49,16 @@ RECT CWindow::GetDragArea()
 	client.top = m_y + 1 + 27;
 	client.right = m_iWidth - 4 - 12;
 	client.bottom = 29;
+	return client;
+}
+
+RECT CWindow::GetTabArea()
+{
+	RECT client;
+	client.left = m_x - 131;
+	client.top = m_y + 57;
+	client.right = 140;
+	client.bottom = m_iHeight - 4 - 550;
 	return client;
 }
 
@@ -76,9 +76,9 @@ void CWindow::Toggle()
 {
 	m_bIsOpen = !m_bIsOpen;
 	if (m_bIsOpen)
-		Interfaces::Engine->ClientCmd_Unrestricted("cl_mouseenable 0");
+		m_pEngine->ClientCmd_Unrestricted("cl_mouseenable 0");
 	else
-		Interfaces::Engine->ClientCmd_Unrestricted("cl_mouseenable 1");
+		m_pEngine->ClientCmd_Unrestricted("cl_mouseenable 1");
 }
 
 bool CWindow::isOpen()

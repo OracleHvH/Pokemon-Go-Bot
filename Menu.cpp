@@ -1,67 +1,126 @@
-/*
-Syn's AyyWare Framework 2015
-*/
-//
-#include "Menu.h"
+﻿#include "Menu.h"
 #include "Controls.h"
-#include "Hooks.h" // for the unload meme
+#include "Hooks.h" 
 #include "Interfaces.h"
-#include "CRC32.h"
+#include "XorStr.hpp"
+#include "mac.h"
+#include <fstream>
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 630
+#define WINDOW_WIDTH 659
+#define WINDOW_HEIGHT 808
 
-AyyWareWindow Menu::Window;
+YetiWindow Menu::Window;
 
-void SaveCallbk()
+void KnifeApplyCallbk()
 {
-	switch (Menu::Window.ConfigBox.GetIndex())
-	{
-	case 0:
-		GUI.SaveWindowState(&Menu::Window, "Legit.cfg");
-		break;
-	case 1:
-		GUI.SaveWindowState(&Menu::Window, "Rage.cfg");
-		break;
-	case 2:
-		GUI.SaveWindowState(&Menu::Window, "MMHvH.cfg");
-		break;
-	case 3:
-		GUI.SaveWindowState(&Menu::Window, "ScoutHvH.cfg");
-		break;
-	case 4:
-		GUI.SaveWindowState(&Menu::Window, "AWPHvH.cfg");
-		break;
-	case 5:
-		GUI.SaveWindowState(&Menu::Window, "NSHvH.cfg");
-		break;
-	}
+	static ConVar* Meme = m_pCVar->FindVar(XorStr("cl_fullupdate"));
+	Meme->nFlags &= ~FCVAR_CHEAT;
+	m_pEngine->ClientCmd_Unrestricted(XorStr("cl_fullupdate"));
 }
 
-// Load Config from CSGO directory
-void LoadCallbk()
+struct Config_t {
+	int id;
+	std::string name;
+};
+
+std::vector<Config_t> configs;
+
+void save_callback()
 {
-	switch (Menu::Window.ConfigBox.GetIndex())
-	{
-	case 0:
-		GUI.LoadWindowState(&Menu::Window, "Legit.cfg");
-		break;
-	case 1:
-		GUI.LoadWindowState(&Menu::Window, "Rage.cfg");
-		break;
-	case 2:
-		GUI.LoadWindowState(&Menu::Window, "MMHvH.cfg");
-		break;
-	case 3:
-		GUI.LoadWindowState(&Menu::Window, "ScoutHvH.cfg");
-		break;
-	case 4:
-		GUI.LoadWindowState(&Menu::Window, "AWPHvH.cfg");
-		break;
-	case 5:
-		GUI.LoadWindowState(&Menu::Window, "NSHvH.cfg");
-		break;
+	int should_save = Menu::Window.MiscTab.ConfigListBox.GetIndex();
+	std::string config_directory = "yeti\\cfg\\";
+	config_directory += configs[should_save].name; config_directory += ".xml";
+	GUI.SaveWindowState(&Menu::Window, XorStr(config_directory.c_str()));
+}
+
+void load_callback()
+{
+	int should_load = Menu::Window.MiscTab.ConfigListBox.GetIndex();
+	std::string config_directory = "yeti\\cfg\\";
+	config_directory += configs[should_load].name; config_directory += ".xml";
+	GUI.LoadWindowState(&Menu::Window, XorStr(config_directory.c_str()));
+}
+
+void list_configs() {
+	configs.clear();
+	Menu::Window.MiscTab.ConfigListBox.ClearItems();
+
+	std::ifstream file_in;
+	file_in.open("yeti\\cfg\\yeti_configs.txt");
+
+	if (file_in.fail()) {
+		std::ofstream("yeti\\cfg\\yeti_configs.txt");
+		file_in.open("yeti\\cfg\\yeti_configs.txt");
 	}
+
+	int line_count;
+
+	while (!file_in.eof()) {
+		Config_t config;
+		file_in >> config.name;
+		config.id = line_count;
+		configs.push_back(config);
+
+		line_count++;
+
+		Menu::Window.MiscTab.ConfigListBox.AddItem(config.name);
+	}
+
+	file_in.close();
+
+	if (configs.size() > 7) Menu::Window.MiscTab.ConfigListBox.AddItem(" ");
+}
+
+void add_config() {
+	std::fstream file;
+	file.open("yeti\\cfg\\yeti_configs.txt", std::fstream::app);
+
+	if (file.fail()) {
+		std::fstream("yeti\\cfg\\yeti_configs.txt");
+		file.open("yeti\\cfg\\yeti_configs.txt", std::fstream::app);
+	}
+
+	file << std::endl << Menu::Window.MiscTab.NewConfigName.getText();
+
+	file.close();
+
+	list_configs();
+
+	int should_add = Menu::Window.MiscTab.ConfigListBox.GetIndex();
+	std::string config_directory = "yeti\\cfg\\";
+	config_directory += Menu::Window.MiscTab.NewConfigName.getText(); config_directory += ".xml";
+	GUI.SaveWindowState(&Menu::Window, XorStr(config_directory.c_str()));
+
+	Menu::Window.MiscTab.NewConfigName.SetText("");
+}
+
+void remove_config() {
+	int should_remove = Menu::Window.MiscTab.ConfigListBox.GetIndex();
+
+	std::string config_directory = "yeti\\cfg\\";
+	config_directory += configs[should_remove].name; config_directory += ".xml";
+	std::remove(config_directory.c_str());
+
+	std::ofstream ofs("yeti\\cfg\\yeti_configs.txt", std::ios::out | std::ios::trunc);
+	ofs.close();
+
+	std::fstream file;
+	file.open("yeti\\cfg\\yeti_configs.txt", std::fstream::app);
+
+	if (file.fail()) {
+		std::fstream("yeti\\cfg\\yeti_configs.txt");
+		file.open("yeti\\cfg\\yeti_configs.txt", std::fstream::app);
+	}
+	
+	for (int i = 0; i < configs.size(); i++) {
+		if (i == should_remove) continue;
+		Config_t config = configs[i];
+		file << std::endl << config.name;
+	}
+
+	file.close();
+
+	list_configs();
 }
 
 void UnLoadCallbk()
@@ -69,1420 +128,1295 @@ void UnLoadCallbk()
 	DoUnload = true;
 }
 
-void KnifeApplyCallbk()
+void YetiWindow::Setup()
 {
-	Interfaces::Engine->ClientCmd_Unrestricted("record meme;stop");
-}
-
-void GlovesApplyCallbk()
-{
-	static ConVar* Meme = Interfaces::CVar->FindVar("cl_fullupdate");
-	Meme->nFlags &= ~FCVAR_CHEAT;
-	Interfaces::Engine->ClientCmd_Unrestricted("cl_fullupdate");
-	bGlovesNeedUpdate = true;
-}
-
-void AyyWareWindow::Setup()
-{
-	SetPosition(350, 50);
+	SetPosition(100, 49);
 	SetSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-	SetTitle("InterPaste");
+	SetTitle(XorStr("Yeti"));
 
 	RegisterTab(&RageBotTab);
-	RegisterTab(&LegitBotTab);
+	RegisterTab(&LegitTab);
 	RegisterTab(&VisualsTab);
 	RegisterTab(&MiscTab);
-	RegisterTab(&SkinchangerTab);
-	//RegisterTab(&Playerlist);
+	RegisterTab(&PlayersTab);
+	RegisterTab(&SkinsTab);
 
 	RECT Client = GetClientArea();
 	Client.bottom -= 29;
 
 	RageBotTab.Setup();
-	LegitBotTab.Setup();
+	LegitTab.Setup();
 	VisualsTab.Setup();
 	MiscTab.Setup();
-	SkinchangerTab.Setup();
-	//Playerlist.Setup();
-
-#pragma region Bottom Buttons
-	ConfigBox.SetFileId("cfg_box");
-	ConfigBox.AddItem("Legit");
-	ConfigBox.AddItem("Legit 2");
-	ConfigBox.AddItem("HvH");
-	ConfigBox.AddItem("HvH 2");
-	ConfigBox.AddItem("Nospread");
-	ConfigBox.SetSize(112, 350);
-	ConfigBox.SetPosition(600, Client.bottom - 480);
-
-	SaveButton.SetText("Save");
-	SaveButton.SetCallback(SaveCallbk);
-	SaveButton.SetSize(112, 350);
-	SaveButton.SetPosition(600, Client.bottom - 450);
-
-	LoadButton.SetText("Load");
-	LoadButton.SetCallback(LoadCallbk);
-	LoadButton.SetSize(112, 350);
-	LoadButton.SetPosition(600, Client.bottom - 420);
-
-	MiscTab.RegisterControl(&LoadButton);
-
-	MiscTab.RegisterControl(&SaveButton);
-
-	MiscTab.RegisterControl(&ConfigBox);
-#pragma endregion Setting up the settings buttons
+	PlayersTab.Setup();
+	SkinsTab.Setup();
 }
 
-void CRageBotTab::Setup()
+void CRageBotTab::Setup( )
 {
-	SetTitle("a");
+	SetTitle( XorStr( "a" ) );
 
-	ActiveLabel.SetPosition(20, 16);
-	ActiveLabel.SetText("Active");
-	RegisterControl(&ActiveLabel);
+	//Aimbot
+	AimbotGroup.SetText( XorStr( "Aimbot" ) );
+	AimbotGroup.SetSize( 293, 540 );
+	AimbotGroup.SetPosition( 24, 16 );
+	AimbotGroup.AddTab( CGroupTab( "Simple", 1 ) );
+	AimbotGroup.AddTab( CGroupTab( "Advanced", 2 ) );
+	AimbotGroup.AddTab( CGroupTab( "Hitscan", 3 ) );
+	RegisterControl( &AimbotGroup );
 
-	Active.SetFileId("active");
-	Active.SetPosition(70, 18);
-	RegisterControl(&Active);
+	Enabled.SetFileId( XorStr( "r_enabled" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Activate" ), this, &Enabled );
 
-#pragma region Aimbot
+	AimbotMode.SetFileId( XorStr( "r_aimbotmode" ) );
+	AimbotMode.AddItem( XorStr( "Visualized" ) );
+	AimbotMode.AddItem( XorStr( "Non-visualized" ) );
+	AimbotMode.AddItem( XorStr( "Anti-aim" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Aimbot mode" ), this, &AimbotMode );
 
-	AimbotGroup.SetPosition(16, 11);
-	AimbotGroup.SetText("Aimbot");
-	AimbotGroup.SetSize(376, 270);
-	RegisterControl(&AimbotGroup);
+	TargetSelection.SetFileId( XorStr( "r_selection" ) );
+	TargetSelection.AddItem( XorStr( "FoV" ) );
+	TargetSelection.AddItem( XorStr( "Distance" ) );
+	TargetSelection.AddItem( XorStr( "Lowest health" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Selection type" ), this, &TargetSelection );
 
-	AimbotEnable.SetFileId("aim_enable");
-	AimbotGroup.PlaceLabledControl("Enable", this, &AimbotEnable);
+	FriendlyFire.SetFileId( XorStr( "r_friendlyfire" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Friendly fire" ), this, &FriendlyFire );
 
-	AimbotAutoFire.SetFileId("aim_autofire");
-	AimbotGroup.PlaceLabledControl("Auto Fire", this, &AimbotAutoFire);
+	AutoFire.SetFileId( XorStr( "r_autofire" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Auto fire" ), this, &AutoFire );
 
-	AimbotFov.SetFileId("aim_fov");
-	AimbotFov.SetBoundaries(0.f, 180.f);
-	AimbotFov.SetValue(39.f);
-	AimbotGroup.PlaceLabledControl("FOV Range", this, &AimbotFov);
+	AutoFireKey.SetFileId( XorStr( "r_autofirekey" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "" ), this, &AutoFireKey );
 
-	AimbotSilentAim.SetFileId("aim_silent");
-	AimbotGroup.PlaceLabledControl("Silent Aim", this, &AimbotSilentAim);
+	AutoFireMode.SetFileId( XorStr( "r_autofiremode" ) );
+	AutoFireMode.AddItem( XorStr( "Bone" ) );
+	AutoFireMode.AddItem( XorStr( "Key Press" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "" ), this, &AutoFireMode );
 
-	AWPAtBody.SetFileId("aim_awpatbody");
-	AimbotGroup.PlaceLabledControl("AWP at Body", this, &AWPAtBody);
+	AutoFireRevolverMode.SetFileId( XorStr( "r_autofirerevolver" ) );
+	AutoFireRevolverMode.AddItem( XorStr( "Off" ) );
+	AutoFireRevolverMode.AddItem( XorStr( "Primary" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Revolver shoot type" ), this, &AutoFireRevolverMode );
 
-	AutoRevolver.SetFileId("aim_autorevolver");
-	AimbotGroup.PlaceLabledControl("Auto Revolver", this, &AutoRevolver);
+	AutoFireTarget.SetFileId( XorStr( "r_autofiretarget" ) );
+	AutoFireTarget.AddItem( XorStr( "Head" ) );
+	AutoFireTarget.AddItem( XorStr( "Neck" ) );
+	AutoFireTarget.AddItem( XorStr( "Chest" ) );
+	AutoFireTarget.AddItem( XorStr( "Stomach" ) );
+	AutoFireTarget.AddItem( XorStr( "Pelvis" ) );
+	AutoFireTarget.AddItem( XorStr( "Left arm" ) );
+	AutoFireTarget.AddItem( XorStr( "Right arm" ) );
+	AutoFireTarget.AddItem( XorStr( "Left leg" ) );
+	AutoFireTarget.AddItem( XorStr( "Right leg" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Autofire bone" ), this, &AutoFireTarget );
 
-	AimbotAimStep.SetFileId("aim_aimstep");
-	AimbotGroup.PlaceLabledControl("Aim Step", this, &AimbotAimStep);
+	MaximumFov.SetFileId( XorStr( "r_fieldofview" ) );
+	MaximumFov.SetBoundaries( 0, 180 );
+	MaximumFov.extension = XorStr( "°" );
+	MaximumFov.SetValue( 0 );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Limit FOV" ), this, &MaximumFov );
 
-	AimbotStopKey.SetFileId("aim_stop");
-	AimbotGroup.PlaceLabledControl("Stop Aim", this, &AimbotStopKey);
+	AutoWall.SetFileId( XorStr( "r_autowall" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Automatic penetration" ), this, &AutoWall );
 
-	OtherSlowMotion.SetFileId("otr_slowmotionbutton");
-	AimbotGroup.PlaceLabledControl("Slow Motion", this, &OtherSlowMotion);
+	MinimumDamage.SetFileId( XorStr( "r_mindmg" ) );
+	MinimumDamage.SetBoundaries( 1, 100 );
+	MinimumDamage.SetValue( 1 );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Minimum damage" ), this, &MinimumDamage );
 
-	OtherFakeWalk.SetFileId("otr_fakewalk");
-	AimbotGroup.PlaceLabledControl("FakeWalk", this, &OtherFakeWalk);
-#pragma endregion Aimbot Controls Get Setup in here
+	AimStep.SetFileId( XorStr( "r_aimstep" ) );
+	AimbotGroup.PlaceLabledControl( 1, XorStr( "Aim step" ), this, &AimStep );
 
-#pragma region Target
-	TargetGroup.SetPosition(16, 297);
-	TargetGroup.SetText("Target");
-	TargetGroup.SetSize(376, 285);
-	RegisterControl(&TargetGroup);
+	PreferBaim.SetFileId( XorStr( "r_preferbaim" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Prefer body" ), this, &PreferBaim );
 
-	TargetSelection.SetFileId("tgt_selection");
-	TargetSelection.AddItem("Closest To Crosshair");
-	TargetSelection.AddItem("Distance");
-	TargetSelection.AddItem("Lowest Health");
-	TargetSelection.AddItem("Threat");
-	TargetSelection.AddItem("Next Shot");
-	TargetGroup.PlaceLabledControl("Selection", this, &TargetSelection);
+	BaimOnXHealth.SetFileId( XorStr( "r_baimonxhp" ) );
+	BaimOnXHealth.SetBoundaries( 0, 100 );
+	BaimOnXHealth.SetValue( 0 );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Body aim on x hp" ), this, &BaimOnXHealth );
 
-	TargetFriendlyFire.SetFileId("tgt_friendlyfire");
-	TargetGroup.PlaceLabledControl("Friendly Fire", this, &TargetFriendlyFire);
+	BaimIfDeadly.SetFileId( XorStr( "r_baimifdeadly" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Body aim if deadly" ), this, &BaimIfDeadly );
 
-	TargetHitbox.SetFileId("tgt_hitbox");
-	TargetHitbox.AddItem("Head");
-	TargetHitbox.AddItem("Neck");
-	TargetHitbox.AddItem("Chest");
-	TargetHitbox.AddItem("Stomach");
-	TargetHitbox.AddItem("Foots");
-	TargetGroup.PlaceLabledControl("Hitbox", this, &TargetHitbox);
+	BodyAimAwp.SetFileId( XorStr( "r_bodyaimawp" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Body aim with awp" ), this, &BodyAimAwp );
 
-	TargetHitscan.SetFileId("tgt_hitscan");
-	TargetHitscan.AddItem("Off");
-	TargetHitscan.AddItem("Low");
-	TargetHitscan.AddItem("Medium");
-	TargetHitscan.AddItem("High");
-	TargetGroup.PlaceLabledControl("Hitscan", this, &TargetHitscan);
+	BodyAimAwpMode.SetFileId( XorStr( "r_bodyaimawpmode" ) );
+	BodyAimAwpMode.AddItem( XorStr( "Always" ) );
+	BodyAimAwpMode.AddItem( XorStr( "Prefer" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "" ), this, &BodyAimAwpMode );
 
-	PVSFix.SetFileId("tgt_pvsfix");
-	TargetGroup.PlaceLabledControl("PVS Fix", this, &PVSFix);
+	BodyAimScout.SetFileId( XorStr( "r_bodyaimscout" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Body aim with scout" ), this, &BodyAimScout );
 
-	EnginePrediction.SetFileId("tgt_enginepred");
-	TargetGroup.PlaceLabledControl("Prediction", this, &EnginePrediction);
+	BodyAimScoutMode.SetFileId( XorStr( "r_bodyaimscoutmode" ) );
+	BodyAimScoutMode.AddItem( XorStr( "Always" ) );
+	BodyAimScoutMode.AddItem( XorStr( "Prefer" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "" ), this, &BodyAimScoutMode );
 
-	TargetMultipoint.SetFileId("tgt_multipoint");
-	TargetGroup.PlaceLabledControl("Multipoint", this, &TargetMultipoint);
+	Pointscale.SetFileId( XorStr( "r_pointscale" ) );
+	Pointscale.SetBoundaries( 0, 100 );
+	Pointscale.extension = XorStr( "%%" );
+	Pointscale.SetValue( 90 );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Pointscale" ), this, &Pointscale );
 
-	TargetPointscale.SetFileId("tgt_pointscale");
-	TargetPointscale.SetBoundaries(0.f, 10.f);
-	TargetPointscale.SetValue(5.f);
-	TargetGroup.PlaceLabledControl("Point Scale", this, &TargetPointscale);
-#pragma endregion Targetting controls 
+	MinimumHitChance.SetFileId( XorStr( "r_minhitchance" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Minimum hit chance" ), this, &MinimumHitChance );
 
-#pragma region Accuracy
-	AccuracyGroup.SetPosition(408, 11);
-	AccuracyGroup.SetText("Accuracy");
-	AccuracyGroup.SetSize(360, 270);
-	RegisterControl(&AccuracyGroup);
+	MinimumHitChanceAmount.SetFileId( XorStr( "r_minhitchanceamount" ) );
+	MinimumHitChanceAmount.SetBoundaries( 0, 100 );
+	MinimumHitChanceAmount.extension = XorStr( "%%" );
+	MinimumHitChanceAmount.SetValue( 0 );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "" ), this, &MinimumHitChanceAmount );
 
-	AccuracyRecoil.SetFileId("acc_norecoil");
-	AccuracyGroup.PlaceLabledControl("Remove Recoil", this, &AccuracyRecoil);
+	AutomaticScope.SetFileId( XorStr( "r_autoscope" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Automatic scope" ), this, &AutomaticScope );
 
-	AccuracyAutoWall.SetFileId("acc_awall");
-	AccuracyGroup.PlaceLabledControl("Auto Wall", this, &AccuracyAutoWall);
+	Autostop.SetFileId( XorStr( "r_autostop" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Automatic stop" ), this, &Autostop );
 
-	AccuracyMinimumDamage.SetFileId("acc_mindmg");
-	AccuracyMinimumDamage.SetBoundaries(1.f, 99.f);
-	AccuracyMinimumDamage.SetValue(1.f);
-	AccuracyGroup.PlaceLabledControl("Autowall Damage", this, &AccuracyMinimumDamage);
+	AutostopType.SetFileId( XorStr( "r_autostoptype" ) );
+	AutostopType.AddItem( XorStr( "Simple" ) );
+	AutostopType.AddItem( XorStr( "Trigonometry" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "" ), this, &AutostopType );
 
-	AccuracyAutoScope.SetFileId("acc_scope");
-	AccuracyGroup.PlaceLabledControl("Auto Scope", this, &AccuracyAutoScope);
+	AccuracyNotCrouching.SetFileId( XorStr( "r_accuracynocrouch" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Accuracy while standing" ), this, &AccuracyNotCrouching );
 
-	AccuracyPositionAdjustment.SetFileId("acc_posadj");
-	AccuracyGroup.PlaceLabledControl("Position Adjustment", this, &AccuracyPositionAdjustment);
+	RemoveRecoil.SetFileId( XorStr( "r_removerecoil" ) );
+	AimbotGroup.PlaceLabledControl( 2, XorStr( "Remove recoil" ), this, &RemoveRecoil );
 
-	AimbotResolver.SetFileId("acc_aaa");
-	AccuracyGroup.PlaceLabledControl("Resolver", this, &AimbotResolver);
+	HitscanBones.SetFileId( XorStr( "r_hitscanbones" ) );
+	HitscanBones.SetTitle( XorStr( "Bones" ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Head" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Neck" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Lower neck" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Upper chest" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Chest" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Lower chest" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Stomach" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Pelvis" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left upper arm" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left lower arm" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left hand" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right upper arm" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right lower arm" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right hand" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left thigh" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left shin" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Left foot" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right thigh" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right shin" ) ) );
+	HitscanBones.items.push_back( MultiBoxItem( false, XorStr( "Right foot" ) ) );
+	AimbotGroup.PlaceLabledControl( 3, XorStr( "" ), this, &HitscanBones );
 
-	//ResolverDebug.SetFileId("acc_debugresolver");
-	//AccuracyGroup.PlaceLabledControl("Resolver ebug", this, &ResolverDebug);
+	//Resolver
+	ResolverOptions.SetText( XorStr( "Hit optimazation" ) );
+	ResolverOptions.SetSize( 293, 260 );
+	ResolverOptions.SetPosition( 333, 16 );
+	RegisterControl( &ResolverOptions );
 
-	AccuracyHitchance.SetFileId("acc_chance");
-	AccuracyHitchance.SetBoundaries(0, 100);
-	AccuracyHitchance.SetValue(0);
-	AccuracyGroup.PlaceLabledControl("Hit Chance", this, &AccuracyHitchance);
+	AntiAimCorrection.SetFileId( XorStr( "r_antiaimcorrection" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Anti-aim correction" ), this, &AntiAimCorrection );
 
-	BaimIfUnderXHealth.SetFileId("acc_BaimIfUnderXHealth");
-	BaimIfUnderXHealth.SetBoundaries(0, 100);
-	BaimIfUnderXHealth.SetValue(0);
-	AccuracyGroup.PlaceLabledControl("Body-Aim if HP is lower than X", this, &BaimIfUnderXHealth);
+	ResolverOverride.SetFileId( XorStr( "r_resolveroverride" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Resolver override" ), this, &ResolverOverride );
 
-	PreferBodyAim.SetFileId("acc_preferbaim");
-	AccuracyGroup.PlaceLabledControl("Prefer Body-Aim", this, &PreferBodyAim);
+	ResolverOverrideKey.SetFileId( XorStr( "r_resolveroverridekey" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "" ), this, &ResolverOverrideKey );
 
-#pragma endregion  Accuracy controls get Setup in here
+	DisableInterpolation.SetFileId( XorStr( "r_disableinterp" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Disable interpolation" ), this, &DisableInterpolation );
 
-#pragma region AntiAim
-	AntiAimGroup.SetPosition(408, 297);
-	AntiAimGroup.SetText("Anti Aim");
-	AntiAimGroup.SetSize(360, 285);
-	RegisterControl(&AntiAimGroup);
+	Backtracking.SetFileId( XorStr( "r_backtracking" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Backtracking" ), this, &Backtracking );
 
-	AntiAimEnable.SetFileId("aa_enable");
-	AntiAimGroup.PlaceLabledControl("Enable", this, &AntiAimEnable);
+	LinearExtrapolations.SetFileId( XorStr( "r_linearextrapolation" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Linear Extrapolations" ), this, &LinearExtrapolations );
 
-	AntiAimPitch.SetFileId("aa_x");
-	AntiAimPitch.AddItem("Off");
-	AntiAimPitch.AddItem("Halfdown");
-	AntiAimPitch.AddItem("Jitter");
-	AntiAimPitch.AddItem("Emotion");
-	AntiAimPitch.AddItem("Up");
-	AntiAimPitch.AddItem("Zero");
-	AntiAimPitch.AddItem("Custom");
-	AntiAimGroup.PlaceLabledControl("Pitch", this, &AntiAimPitch);
+	/*AngleLodge.SetFileId(XorStr("r_anglelodge"));
+	ResolverOptions.PlaceLabledControl(2, XorStr("Angle Lodge"), this, &AngleLodge);
 
-	AntiAimYaw.SetFileId("aa_y");
-	AntiAimYaw.AddItem("Off");
-	AntiAimYaw.AddItem("Fast Spin");
-	AntiAimYaw.AddItem("Slow Spin");
-	AntiAimYaw.AddItem("Jitter");
-	AntiAimYaw.AddItem("180 Jitter");
-	AntiAimYaw.AddItem("Backwards");
-	AntiAimYaw.AddItem("Backwards Jitter");
-	AntiAimYaw.AddItem("Sideways Switch");
-	AntiAimYaw.AddItem("Sideways Right");
-	AntiAimYaw.AddItem("Sideways Left");
-	AntiAimYaw.AddItem("LBY");
-	AntiAimYaw.AddItem("LBY Jitter");
-	AntiAimYaw.AddItem("LBY Sideways");
-	AntiAimYaw.AddItem("LBY Spin");
-	AntiAimYaw.AddItem("LBY Break");
-	AntiAimGroup.PlaceLabledControl("Real Yaw", this, &AntiAimYaw);
+	AngleLodgeSpeed.SetFileId(XorStr("r_anglelodgespeed"));
+	AngleLodgeSpeed.SetFormat(SliderFormat::FORMAT_DECDIG2);
+	AngleLodgeSpeed.SetValue(0.20);
+	AngleLodgeSpeed.SetBoundaries(0, 1);
+	ResolverOptions.PlaceLabledControl(2, XorStr(""), this, &AngleLodgeSpeed);*/
 
-	FakeYaw.SetFileId("fakeaa");
-	FakeYaw.AddItem("Off");
-	FakeYaw.AddItem("Fast Spin");
-	FakeYaw.AddItem("Slow Spin");
-	FakeYaw.AddItem("Jitter");
-	FakeYaw.AddItem("180 Jitter");
-	FakeYaw.AddItem("Backwards");
-	FakeYaw.AddItem("Backwards Jitter");
-	FakeYaw.AddItem("Sideways Switch");
-	FakeYaw.AddItem("Sideways Right");
-	FakeYaw.AddItem("Sideways Left");
-	FakeYaw.AddItem("LBY");
-	FakeYaw.AddItem("Fake Jitter");
-	FakeYaw.AddItem("LBY Sideways");
-	FakeYaw.AddItem("LBY Spin");
-	FakeYaw.AddItem("LBY Break");
-	AntiAimGroup.PlaceLabledControl("Fake Yaw", this, &FakeYaw);
+	ResolverDebug.SetFileId( XorStr( "r_resolverdebug" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Debug" ), this, &ResolverDebug );
 
-	CustomPitch.SetFileId("aa_offset");
-	CustomPitch.SetBoundaries(0, 89);
-	CustomPitch.SetValue(0);
-	AntiAimGroup.PlaceLabledControl("Custom Pitch", this, &CustomPitch);
+	LowerbodyIndicator.SetFileId( XorStr( "r_lbyindicator" ) );
+	ResolverOptions.PlaceLabledControl( 0, XorStr( "Lowerbody indicator" ), this, &LowerbodyIndicator );
 
-	AntiAimOffset.SetFileId("aa_offset");
-	AntiAimOffset.SetBoundaries(0, 360);
-	AntiAimOffset.SetValue(0);
-	AntiAimGroup.PlaceLabledControl("Add Real Yaw", this, &AntiAimOffset);
+	//Anti Aim
+	DefaultAntiAimGroup.SetText( XorStr( "Anti Aim" ) );
+	DefaultAntiAimGroup.SetSize( 293, 272 );
+	DefaultAntiAimGroup.SetPosition( 333, 284 );
+	DefaultAntiAimGroup.AddTab( CGroupTab( "Stagnant", 1 ) );
+	DefaultAntiAimGroup.AddTab( CGroupTab( "Moving", 2 ) );
+	DefaultAntiAimGroup.AddTab( CGroupTab( "Edge", 3 ) );
+	DefaultAntiAimGroup.AddTab( CGroupTab( "Modifiers", 4 ) );
+	RegisterControl( &DefaultAntiAimGroup );
 
-	AddFakeYaw.SetFileId("aa_offset");
-	AddFakeYaw.SetBoundaries(0, 360);
-	AddFakeYaw.SetValue(0);
-	AntiAimGroup.PlaceLabledControl("Add Fake Yaw", this, &AddFakeYaw);
+	stagnant_aa.RealPitch.SetFileId( XorStr( "r_stagnant_realpitch" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Off" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Down" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Fake down" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Up" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Fake up" ) );
+	stagnant_aa.RealPitch.AddItem( XorStr( "Random" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "Pitch" ), this, &stagnant_aa.RealPitch );
 
-	FreeStanding.SetFileId("aa_freestanding");
-	AntiAimGroup.PlaceLabledControl("Free Standing", this, &FreeStanding);
+	stagnant_aa.RealYaw.SetFileId( XorStr( "r_stagnant_realyaw" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Off" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "90°" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "180°" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Crooked" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Jitter" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Swap" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Rotate" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Lowerbody" ) );
+	stagnant_aa.RealYaw.AddItem( XorStr( "Corruption" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "Real yaw" ), this, &stagnant_aa.RealYaw );
 
-	FreeStandingDelta.SetFileId("aa_freestanding_delta");
-	FreeStandingDelta.SetBoundaries(0, 360);
-	FreeStandingDelta.SetValue(0);
-	AntiAimGroup.PlaceLabledControl("Free Standing Delta", this, &FreeStandingDelta);
+	stagnant_aa.RealYawOffset.SetFileId( XorStr( "r_stagnant_realyawoffset" ) );
+	stagnant_aa.RealYawOffset.SetBoundaries( -180, 180 );
+	stagnant_aa.RealYawOffset.extension = XorStr( "°" );
+	stagnant_aa.RealYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "" ), this, &stagnant_aa.RealYawOffset );
 
-	FreeStandingVelocityBreak.SetFileId("aa_freestanding_velo_break");
-	FreeStandingVelocityBreak.SetBoundaries(0, 250);
-	FreeStandingVelocityBreak.SetValue(75);
-	AntiAimGroup.PlaceLabledControl("Free Standing Maximum Velocity", this, &FreeStandingVelocityBreak);
+	stagnant_aa.FakeYaw.SetFileId( XorStr( "r_stagnant_fakeyaw" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Off" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "90°" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "180°" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Crooked" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Jitter" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Swap" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Rotate" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Lowerbody" ) );
+	stagnant_aa.FakeYaw.AddItem( XorStr( "Corruption" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "Fake yaw" ), this, &stagnant_aa.FakeYaw );
 
-	AntiAimTarget.SetFileId("aa_target");
-	AntiAimGroup.PlaceLabledControl("At Targets", this, &AntiAimTarget);
-#pragma endregion  AntiAim controls get setup in here
+	stagnant_aa.FakeYawOffset.SetFileId( XorStr( "r_stagnant_fakeyawoffset" ) );
+	stagnant_aa.FakeYawOffset.SetBoundaries( -180, 180 );
+	stagnant_aa.FakeYawOffset.extension = XorStr( "°" );
+	stagnant_aa.FakeYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "" ), this, &stagnant_aa.FakeYawOffset );
+
+	stagnant_aa.CleanUp.SetFileId( XorStr( "r_moving_cleanup" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 1, XorStr( "Clean up" ), this, &stagnant_aa.CleanUp );
+
+	moving_aa.RealPitch.SetFileId( XorStr( "r_moving_realpitch" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Off" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Down" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Fake down" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Up" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Fake up" ) );
+	moving_aa.RealPitch.AddItem( XorStr( "Random" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "Pitch" ), this, &moving_aa.RealPitch );
+
+	moving_aa.RealYaw.SetFileId( XorStr( "r_moving_realyaw" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Off" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "90°" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "180°" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Crooked" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Jitter" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Swap" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Rotate" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Lowerbody" ) );
+	moving_aa.RealYaw.AddItem( XorStr( "Corruption" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "Real yaw" ), this, &moving_aa.RealYaw );
+
+	moving_aa.RealYawOffset.SetFileId( XorStr( "r_moving_realyawoffset" ) );
+	moving_aa.RealYawOffset.SetBoundaries( -180, 180 );
+	moving_aa.RealYawOffset.extension = XorStr( "°" );
+	moving_aa.RealYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "" ), this, &moving_aa.RealYawOffset );
+
+	moving_aa.FakeYaw.SetFileId( XorStr( "r_moving_fakeyaw" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Off" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "90°" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "180°" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Crooked" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Jitter" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Swap" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Rotate" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Lowerbody" ) );
+	moving_aa.FakeYaw.AddItem( XorStr( "Corruption" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "Fake yaw" ), this, &moving_aa.FakeYaw );
+
+	moving_aa.FakeYawOffset.SetFileId( XorStr( "r_moving_fakeyawoffset" ) );
+	moving_aa.FakeYawOffset.SetBoundaries( -180, 180 );
+	moving_aa.FakeYawOffset.extension = XorStr( "°" );
+	moving_aa.FakeYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "" ), this, &moving_aa.FakeYawOffset );
+
+	moving_aa.CleanUp.SetFileId( XorStr( "r_moving_cleanup" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 2, XorStr( "Clean up" ), this, &moving_aa.CleanUp );
+
+	edge_aa.Type.SetFileId( XorStr( "r_edge_walldtc" ) );
+	edge_aa.Type.AddItem( XorStr( "Off" ) );
+	edge_aa.Type.AddItem( XorStr( "Freestanding" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "Edge type" ), this, &edge_aa.Type );
+
+	edge_aa.RealPitch.SetFileId( XorStr( "r_edge_realpitch" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Off" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Down" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Fake down" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Up" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Fake up" ) );
+	edge_aa.RealPitch.AddItem( XorStr( "Random" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "Pitch" ), this, &edge_aa.RealPitch );
+
+	edge_aa.RealYaw.SetFileId( XorStr( "r_edge_realyaw" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "Off" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "90°" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "180°" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "Crooked" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "Jitter" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "Swap" ) );
+	edge_aa.RealYaw.AddItem( XorStr( "Rotate" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "Real yaw" ), this, &edge_aa.RealYaw );
+
+	edge_aa.RealYawOffset.SetFileId( XorStr( "r_edge_realyawoffset" ) );
+	edge_aa.RealYawOffset.SetBoundaries( -180, 180 );
+	edge_aa.RealYawOffset.extension = XorStr( "°" );
+	edge_aa.RealYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "" ), this, &edge_aa.RealYawOffset );
+
+	edge_aa.FakeYaw.SetFileId( XorStr( "r_edge_fakeyaw" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "Off" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "90°" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "180°" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "Crooked" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "Jitter" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "Swap" ) );
+	edge_aa.FakeYaw.AddItem( XorStr( "Rotate" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "Fake yaw" ), this, &edge_aa.FakeYaw );
+
+	edge_aa.FakeYawOffset.SetFileId( XorStr( "r_edge_fakeyawoffset" ) );
+	edge_aa.FakeYawOffset.SetBoundaries( -180, 180 );
+	edge_aa.FakeYawOffset.extension = XorStr( "°" );
+	edge_aa.FakeYawOffset.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 3, XorStr( "" ), this, &edge_aa.FakeYawOffset );
+
+	DormantCheck.SetFileId( XorStr( "r_dormantcheck" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "Dormant check" ), this, &DormantCheck );
+
+	RealYawDirection.SetFileId( XorStr( "r_realyawdirection" ) );
+	RealYawDirection.AddItem( XorStr( "Free look" ) );
+	RealYawDirection.AddItem( XorStr( "Static" ) );
+	RealYawDirection.AddItem( XorStr( "Dynamic" ) );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "Yaw direction" ), this, &RealYawDirection );
+
+	RotateSpeed.SetFileId( XorStr( "r_rotatespeed" ) );
+	RotateSpeed.SetBoundaries( 0, 5 );
+	RotateSpeed.SetValue( 0 );
+	RotateSpeed.SetFormat( SliderFormat::FORMAT_DECDIG2 );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "Rotate speed" ), this, &RotateSpeed );
+
+	JitterRange.SetFileId( XorStr( "r_jitterrange" ) );
+	JitterRange.SetBoundaries( 0, 180 );
+	JitterRange.extension = XorStr( "°" );
+	JitterRange.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "Jitter range" ), this, &JitterRange );
+
+	Lbybreaker.SetFileId( "r_lbybreaker" );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "Lowerbody breaker" ), this, &Lbybreaker );
+
+	LbyDelta.SetFileId( XorStr( "r_lbydelta" ) );
+	LbyDelta.SetBoundaries( -180, 180 );
+	LbyDelta.extension = XorStr( "°" );
+	LbyDelta.SetValue( 0 );
+	DefaultAntiAimGroup.PlaceLabledControl( 4, XorStr( "" ), this, &LbyDelta );
 }
-void CLegitBotTab::Setup()
+
+void CLegitTab::Setup()
 {
-	SetTitle("b");
+	SetTitle(XorStr("b"));
 
-	ActiveLabel.SetPosition(20, 16);
-	ActiveLabel.SetText("Active");
-	RegisterControl(&ActiveLabel);
-
-	Active.SetFileId("active");
-	Active.SetPosition(70, 18);
-	RegisterControl(&Active);
-
-#pragma region Aimbot
-	AimbotGroup.SetPosition(16, 11);
-	AimbotGroup.SetText("Aimbot");
-	AimbotGroup.SetSize(240, 170);
+	AimbotGroup.SetText(XorStr("Aimbot"));
+	AimbotGroup.SetSize(293, 540);
+	AimbotGroup.SetPosition(24, 16);
+	AimbotGroup.AddTab(CGroupTab("Pistol", 1));
+	AimbotGroup.AddTab(CGroupTab("SMG", 2));
+	AimbotGroup.AddTab(CGroupTab("Rifle", 3));
+	AimbotGroup.AddTab(CGroupTab("Shotgun", 4));
+	AimbotGroup.AddTab(CGroupTab("Snipers", 5));
 	RegisterControl(&AimbotGroup);
 
-	AimbotEnable.SetFileId("aim_enable");
-	AimbotGroup.PlaceLabledControl("Enable", this, &AimbotEnable);
+	// pistol
+	pistol.Enabled.SetFileId(XorStr("pistol_enabled"));
+	AimbotGroup.PlaceLabledControl(1, XorStr("Activate"), this, &pistol.Enabled);
 
-	AimbotAutoFire.SetFileId("aim_autofire");
-	AimbotGroup.PlaceLabledControl("Auto Fire", this, &AimbotAutoFire);
+	pistol.AimbotMode.SetFileId(XorStr("pistol_mode"));
+	pistol.AimbotMode.AddItem(XorStr("Visualized"));
+	pistol.AimbotMode.AddItem(XorStr("Non-visualized"));
+	pistol.AimbotMode.AddItem(XorStr("Anti-aim"));
+	AimbotGroup.PlaceLabledControl(1, XorStr("Aimbot mode"), this, &pistol.AimbotMode);
 
-	AimbotFriendlyFire.SetFileId("aim_friendfire");
-	AimbotGroup.PlaceLabledControl("Friendly Fire", this, &AimbotFriendlyFire);
+	pistol.AutoFire.SetFileId(XorStr("pistol_autofire"));
+	AimbotGroup.PlaceLabledControl(1, XorStr("Auto fire"), this, &pistol.AutoFire);
 
-	AimbotSmokeCheck.SetFileId("otr_smokecheck");
-	AimbotGroup.PlaceLabledControl("Smoke Check", this, &AimbotSmokeCheck);
+	pistol.AutoFireKey.SetFileId(XorStr("pistol_autofirekey"));
+	AimbotGroup.PlaceLabledControl(1, XorStr(""), this, &pistol.AutoFireKey);
 
-	AimbotKeyPress.SetFileId("aim_usekey");
-	AimbotGroup.PlaceLabledControl("On Key", this, &AimbotKeyPress);
+	pistol.AutoFireMode.SetFileId(XorStr("pistol_autofiremode"));
+	pistol.AutoFireMode.AddItem(XorStr("Bone"));
+	pistol.AutoFireMode.AddItem(XorStr("Key Press"));
+	AimbotGroup.PlaceLabledControl(1, XorStr(""), this, &pistol.AutoFireMode);
 
-	AimbotKeyBind.SetFileId("aim_key");
-	AimbotGroup.PlaceLabledControl("Key Bind", this, &AimbotKeyBind);
+	pistol.AutoFireTarget.SetFileId(XorStr("pistol_autofiretarget"));
+	pistol.AutoFireTarget.AddItem(XorStr("Head"));
+	pistol.AutoFireTarget.AddItem(XorStr("Neck"));
+	pistol.AutoFireTarget.AddItem(XorStr("Chest"));
+	pistol.AutoFireTarget.AddItem(XorStr("Stomach"));
+	pistol.AutoFireTarget.AddItem(XorStr("Pelvis"));
+	pistol.AutoFireTarget.AddItem(XorStr("Left arm"));
+	pistol.AutoFireTarget.AddItem(XorStr("Right arm"));
+	pistol.AutoFireTarget.AddItem(XorStr("Left leg"));
+	pistol.AutoFireTarget.AddItem(XorStr("Right leg"));
+	AimbotGroup.PlaceLabledControl(1, XorStr("Autofire bone"), this, &pistol.AutoFireTarget);
 
-#pragma endregion Aimbot shit
+	pistol.FieldOfView.SetFileId(XorStr("pistol_fov"));
+	pistol.FieldOfView.SetBoundaries(0, 90);
+	pistol.FieldOfView.extension = XorStr( "°" );
+	pistol.FieldOfView.SetValue(0);
+	pistol.FieldOfView.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(1, XorStr("Limit FOV"), this, &pistol.FieldOfView);
 
-#pragma region Triggerbot
-	TriggerGroup.SetPosition(272, 11);
-	TriggerGroup.SetText("Triggerbot");
-	TriggerGroup.SetSize(240, 170);
-	RegisterControl(&TriggerGroup);
+	if (macsys.is_dev)
+	{
+		pistol.ReactionTime.SetFileId(XorStr("pistol_reaction"));
+		pistol.ReactionTime.AddItem(XorStr("Slow"));
+		pistol.ReactionTime.AddItem(XorStr("Medium"));
+		pistol.ReactionTime.AddItem(XorStr("Fast"));
+		pistol.ReactionTime.AddItem(XorStr("Insane"));
+		AimbotGroup.PlaceLabledControl(1, XorStr("Reaction time"), this, &pistol.ReactionTime);
+	}
 
-	TriggerEnable.SetFileId("trig_enable");
-	TriggerGroup.PlaceLabledControl("Enable", this, &TriggerEnable);
+	pistol.Smoothing.SetFileId(XorStr("pistol_smoothing"));
+	pistol.Smoothing.SetBoundaries(0, 5);
+	pistol.Smoothing.SetValue(0);
+	pistol.Smoothing.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(1, XorStr("Sensitivity"), this, &pistol.Smoothing);
 
-	TriggerKeyPress.SetFileId("trig_onkey");
-	TriggerGroup.PlaceLabledControl("On Key Press", this, &TriggerKeyPress);
+	pistol.Recoil.SetFileId(XorStr("pistol_recoil"));
+	pistol.Recoil.SetBoundaries(0, 2);
+	pistol.Recoil.SetValue(0);
+	pistol.Recoil.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(1, XorStr("Recoil"), this, &pistol.Recoil);
 
-	TriggerKeyBind.SetFileId("trig_key");
-	TriggerGroup.PlaceLabledControl("Key Bind", this, &TriggerKeyBind);
+	// smg
+	smg.Enabled.SetFileId(XorStr("smg_enabled"));
+	AimbotGroup.PlaceLabledControl(2, XorStr("Activate"), this, &smg.Enabled);
 
-	OtherxGodWalk.SetFileId("trig_moonwalk");
-	TriggerGroup.PlaceLabledControl("AA Legit", this, &OtherxGodWalk);
+	smg.AimbotMode.SetFileId(XorStr("smg_mode"));
+	smg.AimbotMode.AddItem(XorStr("Visualized"));
+	smg.AimbotMode.AddItem(XorStr("Non-visualized"));
+	smg.AimbotMode.AddItem(XorStr("Anti-aim"));
+	AimbotGroup.PlaceLabledControl(2, XorStr("Aimbot mode"), this, &smg.AimbotMode);
 
-#pragma endregion TriggerbotFilter stuff
+	smg.AutoFire.SetFileId(XorStr("smg_autofire"));
+	AimbotGroup.PlaceLabledControl(2, XorStr("Auto fire"), this, &smg.AutoFire);
 
-#pragma region Main Weapon
-	WeaponMainGroup.SetPosition(16, 208);
-	WeaponMainGroup.SetText("Rifles");
-	WeaponMainGroup.SetSize(240, 135);
-	RegisterControl(&WeaponMainGroup);
+	smg.AutoFireKey.SetFileId(XorStr("smg_autofirekey"));
+	AimbotGroup.PlaceLabledControl(2, XorStr(""), this, &smg.AutoFireKey);
 
-	WeaponMainHitbox.SetFileId("main_hitbox");
-	WeaponMainHitbox.AddItem("Head");
-	WeaponMainHitbox.AddItem("Neck");
-	WeaponMainHitbox.AddItem("Chest");
-	WeaponMainHitbox.AddItem("Stomach");
-	WeaponMainHitbox.AddItem("Multihitbox");
-	WeaponMainGroup.PlaceLabledControl("Hitbox", this, &WeaponMainHitbox);
+	smg.AutoFireMode.SetFileId(XorStr("smg_autofiremode"));
+	smg.AutoFireMode.AddItem(XorStr("Bone"));
+	smg.AutoFireMode.AddItem(XorStr("Key Press"));
+	AimbotGroup.PlaceLabledControl(2, XorStr(""), this, &smg.AutoFireMode);
 
-	WeaponMainSpeed.SetFileId("main_speed");
-	WeaponMainSpeed.SetBoundaries(0.f, 100.f);
-	WeaponMainSpeed.SetValue(1.f);
-	WeaponMainGroup.PlaceLabledControl("Max Speed", this, &WeaponMainSpeed);
+	smg.AutoFireTarget.SetFileId(XorStr("smg_autofiretarget"));
+	smg.AutoFireTarget.AddItem(XorStr("Head"));
+	smg.AutoFireTarget.AddItem(XorStr("Neck"));
+	smg.AutoFireTarget.AddItem(XorStr("Chest"));
+	smg.AutoFireTarget.AddItem(XorStr("Stomach"));
+	smg.AutoFireTarget.AddItem(XorStr("Pelvis"));
+	smg.AutoFireTarget.AddItem(XorStr("Left arm"));
+	smg.AutoFireTarget.AddItem(XorStr("Right arm"));
+	smg.AutoFireTarget.AddItem(XorStr("Left leg"));
+	smg.AutoFireTarget.AddItem(XorStr("Right leg"));
+	AimbotGroup.PlaceLabledControl(2, XorStr("Autofire bone"), this, &smg.AutoFireTarget);
 
-	WeaponMainFoV.SetFileId("main_fov");
-	WeaponMainFoV.SetBoundaries(0.f, 30.f);
-	WeaponMainFoV.SetValue(3.5f);
-	WeaponMainGroup.PlaceLabledControl("Field of View", this, &WeaponMainFoV);
+	smg.FieldOfView.SetFileId(XorStr("smg_fov"));
+	smg.FieldOfView.SetBoundaries(0, 90);
+	smg.FieldOfView.extension = XorStr( "°" );
+	smg.FieldOfView.SetValue(0);
+	smg.FieldOfView.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(2, XorStr("Limit FOV"), this, &smg.FieldOfView);
 
-	WeaponMainRecoil.SetFileId("main_recoil");
-	WeaponMainRecoil.SetBoundaries(0.f, 2.f);
-	WeaponMainRecoil.SetValue(1.f);
-	WeaponMainGroup.PlaceLabledControl("Recoil Control", this, &WeaponMainRecoil);
+	if (macsys.is_dev)
+	{
+		smg.ReactionTime.SetFileId(XorStr("smg_reaction"));
+		smg.ReactionTime.AddItem(XorStr("Slow"));
+		smg.ReactionTime.AddItem(XorStr("Medium"));
+		smg.ReactionTime.AddItem(XorStr("Fast"));
+		smg.ReactionTime.AddItem(XorStr("Insane"));
+		AimbotGroup.PlaceLabledControl(2, XorStr("Reaction time"), this, &smg.ReactionTime);
+	}
 
-	WeaponMainAimtime.SetValue(0);
-	WeaoponMainStartAimtime.SetValue(0);
+	smg.Smoothing.SetFileId(XorStr("smg_smoothing"));
+	smg.Smoothing.SetBoundaries(0, 5);
+	smg.Smoothing.SetValue(0);
+	smg.Smoothing.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(2, XorStr("Sensitivity"), this, &smg.Smoothing);
 
-#pragma endregion
+	smg.Recoil.SetFileId(XorStr("smg_recoil"));
+	smg.Recoil.SetBoundaries(0, 2);
+	smg.Recoil.SetValue(0);
+	smg.Recoil.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(2, XorStr("Recoil"), this, &smg.Recoil);
 
-#pragma region Pistols
-	WeaponPistGroup.SetPosition(272, 208);
-	WeaponPistGroup.SetText("Pistols");
-	WeaponPistGroup.SetSize(240, 135);
-	RegisterControl(&WeaponPistGroup);
+	// Rifle
+	rifle.Enabled.SetFileId(XorStr("rifle_enabled"));
+	AimbotGroup.PlaceLabledControl(3, XorStr("Activate"), this, &rifle.Enabled);
 
-	WeaponPistHitbox.SetFileId("pist_hitbox");
-	WeaponPistHitbox.AddItem("Head");
-	WeaponPistHitbox.AddItem("Neck");
-	WeaponPistHitbox.AddItem("Chest");
-	WeaponPistHitbox.AddItem("Stomach");
-	WeaponPistHitbox.AddItem("Multihitbox");
-	WeaponPistGroup.PlaceLabledControl("Hitbox", this, &WeaponPistHitbox);
+	rifle.AimbotMode.SetFileId(XorStr("rifle_mode"));
+	rifle.AimbotMode.AddItem(XorStr("Visualized"));
+	rifle.AimbotMode.AddItem(XorStr("Non-visualized"));
+	rifle.AimbotMode.AddItem(XorStr("Anti-aim"));
+	AimbotGroup.PlaceLabledControl(3, XorStr("Aimbot mode"), this, &rifle.AimbotMode);
 
-	WeaponPistSpeed.SetFileId("pist_speed");
-	WeaponPistSpeed.SetBoundaries(0.f, 100.f);
-	WeaponPistSpeed.SetValue(1.0f);
-	WeaponPistGroup.PlaceLabledControl("Max Speed", this, &WeaponPistSpeed);
+	rifle.AutoFire.SetFileId(XorStr("rifle_autofire"));
+	AimbotGroup.PlaceLabledControl(3, XorStr("Auto fire"), this, &rifle.AutoFire);
 
-	WeaponPistFoV.SetFileId("pist_fov");
-	WeaponPistFoV.SetBoundaries(0.f, 30.f);
-	WeaponPistFoV.SetValue(3.f);
-	WeaponPistGroup.PlaceLabledControl("Field of View", this, &WeaponPistFoV);
+	rifle.AutoFireKey.SetFileId(XorStr("rifle_autofirekey"));
+	AimbotGroup.PlaceLabledControl(3, XorStr(""), this, &rifle.AutoFireKey);
 
-	WeaponPistRecoil.SetFileId("pist_recoil");
-	WeaponPistRecoil.SetBoundaries(0.f, 2.f);
-	WeaponPistRecoil.SetValue(1.f);
-	WeaponPistGroup.PlaceLabledControl("Recoil Control", this, &WeaponPistRecoil);
+	rifle.AutoFireMode.SetFileId(XorStr("rifle_autofiremode"));
+	rifle.AutoFireMode.AddItem(XorStr("Bone"));
+	rifle.AutoFireMode.AddItem(XorStr("Key Press"));
+	AimbotGroup.PlaceLabledControl(3, XorStr(""), this, &rifle.AutoFireMode);
 
-	WeaponPistAimtime.SetValue(0);
-	WeaoponPistStartAimtime.SetValue(0);
+	rifle.AutoFireTarget.SetFileId(XorStr("rifle_autofiretarget"));
+	rifle.AutoFireTarget.AddItem(XorStr("Head"));
+	rifle.AutoFireTarget.AddItem(XorStr("Neck"));
+	rifle.AutoFireTarget.AddItem(XorStr("Chest"));
+	rifle.AutoFireTarget.AddItem(XorStr("Stomach"));
+	rifle.AutoFireTarget.AddItem(XorStr("Pelvis"));
+	rifle.AutoFireTarget.AddItem(XorStr("Left arm"));
+	rifle.AutoFireTarget.AddItem(XorStr("Right arm"));
+	rifle.AutoFireTarget.AddItem(XorStr("Left leg"));
+	rifle.AutoFireTarget.AddItem(XorStr("Right leg"));
+	AimbotGroup.PlaceLabledControl(3, XorStr("Autofire bone"), this, &rifle.AutoFireTarget);
 
-#pragma endregion
+	rifle.FieldOfView.SetFileId(XorStr("rifle_fov"));
+	rifle.FieldOfView.SetBoundaries(0, 90);
+	rifle.FieldOfView.extension = XorStr( "°" );
+	rifle.FieldOfView.SetValue(0);
+	rifle.FieldOfView.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(3, XorStr("Limit FOV"), this, &rifle.FieldOfView);
 
-#pragma region Snipers
-	WeaponSnipGroup.SetPosition(528, 208);
-	WeaponSnipGroup.SetText("Snipers");
-	WeaponSnipGroup.SetSize(240, 135);
-	RegisterControl(&WeaponSnipGroup);
+	if (macsys.is_dev)
+	{
+		rifle.ReactionTime.SetFileId(XorStr("rifle_reaction"));
+		rifle.ReactionTime.AddItem(XorStr("Slow"));
+		rifle.ReactionTime.AddItem(XorStr("Medium"));
+		rifle.ReactionTime.AddItem(XorStr("Fast"));
+		rifle.ReactionTime.AddItem(XorStr("Insane"));
+		AimbotGroup.PlaceLabledControl(3, XorStr("Reaction time"), this, &rifle.ReactionTime);
+	}
 
-	WeaponSnipHitbox.SetFileId("snip_hitbox");
-	WeaponSnipHitbox.AddItem("Head");
-	WeaponSnipHitbox.AddItem("Neck");
-	WeaponSnipHitbox.AddItem("Chest");
-	WeaponSnipHitbox.AddItem("Stomach");
-	WeaponSnipHitbox.AddItem("Multihitbox");
-	WeaponSnipGroup.PlaceLabledControl("Hitbox", this, &WeaponSnipHitbox);
+	rifle.Smoothing.SetFileId(XorStr("rifle_smoothing"));
+	rifle.Smoothing.SetBoundaries(0, 5);
+	rifle.Smoothing.SetValue(0);
+	rifle.Smoothing.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(3, XorStr("Sensitivity"), this, &rifle.Smoothing);
 
-	WeaponSnipSpeed.SetFileId("snip_speed");
-	WeaponSnipSpeed.SetBoundaries(0.f, 100.f);
-	WeaponSnipSpeed.SetValue(1.5f);
-	WeaponSnipGroup.PlaceLabledControl("Max Speed", this, &WeaponSnipSpeed);
+	rifle.Recoil.SetFileId(XorStr("rifle_recoil"));
+	rifle.Recoil.SetBoundaries(0, 2);
+	rifle.Recoil.SetValue(0);
+	rifle.Recoil.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(3, XorStr("Recoil"), this, &rifle.Recoil);
 
-	WeaponSnipFoV.SetFileId("snip_fov");
-	WeaponSnipFoV.SetBoundaries(0.f, 30.f);
-	WeaponSnipFoV.SetValue(2.f);
-	WeaponSnipGroup.PlaceLabledControl("Field of View", this, &WeaponSnipFoV);
+	// Shotgun
+	shotgun.Enabled.SetFileId(XorStr("shotgun_enabled"));
+	AimbotGroup.PlaceLabledControl(4, XorStr("Activate"), this, &shotgun.Enabled);
 
-	WeaponSnipRecoil.SetFileId("snip_recoil");
-	WeaponSnipRecoil.SetBoundaries(0.f, 2.f);
-	WeaponSnipRecoil.SetValue(1.f);
-	WeaponSnipGroup.PlaceLabledControl("Recoil Control", this, &WeaponSnipRecoil);
+	shotgun.AimbotMode.SetFileId(XorStr("shotgun_mode"));
+	shotgun.AimbotMode.AddItem(XorStr("Visualized"));
+	shotgun.AimbotMode.AddItem(XorStr("Non-visualized"));
+	shotgun.AimbotMode.AddItem(XorStr("Anti-aim"));
+	AimbotGroup.PlaceLabledControl(4, XorStr("Aimbot mode"), this, &shotgun.AimbotMode);
 
-	WeaponSnipAimtime.SetValue(0);
-	WeaoponSnipStartAimtime.SetValue(0);
+	shotgun.AutoFire.SetFileId(XorStr("shotgun_autofire"));
+	AimbotGroup.PlaceLabledControl(4, XorStr("Auto fire"), this, &shotgun.AutoFire);
 
-#pragma region MPs
-	WeaponMpGroup.SetPosition(16, 365);
-	WeaponMpGroup.SetText("MPs");
-	WeaponMpGroup.SetSize(240, 136);
-	RegisterControl(&WeaponMpGroup);
+	shotgun.AutoFireKey.SetFileId(XorStr("shotgun_autofirekey"));
+	AimbotGroup.PlaceLabledControl(4, XorStr(""), this, &shotgun.AutoFireKey);
 
-	WeaponMpHitbox.SetFileId("mps_hitbox");
-	WeaponMpHitbox.AddItem("Head");
-	WeaponMpHitbox.AddItem("Neck");
-	WeaponMpHitbox.AddItem("Chest");
-	WeaponMpHitbox.AddItem("Stomach");
-	WeaponMpHitbox.AddItem("Multihitbox");
-	WeaponMpGroup.PlaceLabledControl("Hitbox", this, &WeaponMpHitbox);
+	shotgun.AutoFireMode.SetFileId(XorStr("shotgun_autofiremode"));
+	shotgun.AutoFireMode.AddItem(XorStr("Bone"));
+	shotgun.AutoFireMode.AddItem(XorStr("Key Press"));
+	AimbotGroup.PlaceLabledControl(4, XorStr(""), this, &shotgun.AutoFireMode);
 
-	WeaponMpSpeed.SetFileId("mps_speed");
-	WeaponMpSpeed.SetBoundaries(0.f, 100.f);
-	WeaponMpSpeed.SetValue(1.0f);
-	WeaponMpGroup.PlaceLabledControl("Max Speed", this, &WeaponMpSpeed);
+	shotgun.AutoFireTarget.SetFileId(XorStr("shotgun_autofiretarget"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Head"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Neck"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Chest"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Stomach"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Pelvis"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Left arm"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Right arm"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Left leg"));
+	shotgun.AutoFireTarget.AddItem(XorStr("Right leg"));
+	AimbotGroup.PlaceLabledControl(4, XorStr("Autofire bone"), this, &shotgun.AutoFireTarget);
 
-	WeaponMpFoV.SetFileId("mps_fov");
-	WeaponMpFoV.SetBoundaries(0.f, 30.f);
-	WeaponMpFoV.SetValue(4.f);
-	WeaponMpGroup.PlaceLabledControl("Field of View", this, &WeaponMpFoV);
+	shotgun.FieldOfView.SetFileId(XorStr("shotgun_fov"));
+	shotgun.FieldOfView.SetBoundaries(0, 90);
+	shotgun.FieldOfView.extension = XorStr( "°" );
+	shotgun.FieldOfView.SetValue(0);
+	shotgun.FieldOfView.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(4, XorStr("Limit FOV"), this, &shotgun.FieldOfView);
 
-	WeaponMpRecoil.SetFileId("mps_recoil");
-	WeaponMpRecoil.SetBoundaries(0.f, 2.f);
-	WeaponMpRecoil.SetValue(1.f);
-	WeaponMpGroup.PlaceLabledControl("Recoil Control", this, &WeaponMpRecoil);
+	if (macsys.is_dev)
+	{
+		shotgun.ReactionTime.SetFileId(XorStr("shotgun_reaction"));
+		shotgun.ReactionTime.AddItem(XorStr("Slow"));
+		shotgun.ReactionTime.AddItem(XorStr("Medium"));
+		shotgun.ReactionTime.AddItem(XorStr("Fast"));
+		shotgun.ReactionTime.AddItem(XorStr("Insane"));
+		AimbotGroup.PlaceLabledControl(4, XorStr("Reaction time"), this, &shotgun.ReactionTime);
+	}
 
-	WeaponMpAimtime.SetValue(0);
-	WeaoponMpStartAimtime.SetValue(0);
-#pragma endregion
+	shotgun.Smoothing.SetFileId(XorStr("shotgun_smoothing"));
+	shotgun.Smoothing.SetBoundaries(0, 5);
+	shotgun.Smoothing.SetValue(0);
+	shotgun.Smoothing.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(4, XorStr("Sensitivity"), this, &shotgun.Smoothing);
 
-#pragma region Shotguns
-	WeaponShotgunGroup.SetPosition(272, 365);
-	WeaponShotgunGroup.SetText("Shotguns");
-	WeaponShotgunGroup.SetSize(240, 136);
-	RegisterControl(&WeaponShotgunGroup);
+	shotgun.Recoil.SetFileId(XorStr("shotgun_recoil"));
+	shotgun.Recoil.SetBoundaries(0, 2);
+	shotgun.Recoil.SetValue(0);
+	shotgun.Recoil.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(4, XorStr("Recoil"), this, &shotgun.Recoil);
+	
+	// Sniper
+	sniper.Enabled.SetFileId(XorStr("sniper_enabled"));
+	AimbotGroup.PlaceLabledControl(5, XorStr("Activate"), this, &sniper.Enabled);
 
-	WeaponShotgunHitbox.SetFileId("shotgun_hitbox");
-	WeaponShotgunHitbox.AddItem("Head");
-	WeaponShotgunHitbox.AddItem("Neck");
-	WeaponShotgunHitbox.AddItem("Chest");
-	WeaponShotgunHitbox.AddItem("Stomach");
-	WeaponShotgunHitbox.AddItem("Multihitbox");
-	WeaponShotgunGroup.PlaceLabledControl("Hitbox", this, &WeaponShotgunHitbox);
+	sniper.AimbotMode.SetFileId(XorStr("sniper_mode"));
+	sniper.AimbotMode.AddItem(XorStr("Visualized"));
+	sniper.AimbotMode.AddItem(XorStr("Non-visualized"));
+	sniper.AimbotMode.AddItem(XorStr("Anti-aim"));
+	AimbotGroup.PlaceLabledControl(5, XorStr("Aimbot mode"), this, &sniper.AimbotMode);
 
-	WeaponShotgunSpeed.SetFileId("shotgun_speed");
-	WeaponShotgunSpeed.SetBoundaries(0.f, 100.f);
-	WeaponShotgunSpeed.SetValue(1.0f);
-	WeaponShotgunGroup.PlaceLabledControl("Max Speed", this, &WeaponShotgunSpeed);
+	sniper.AutoFire.SetFileId(XorStr("sniper_autofire"));
+	AimbotGroup.PlaceLabledControl(5, XorStr("Auto fire"), this, &sniper.AutoFire);
 
-	WeaponShotgunFoV.SetFileId("shotgun_fov");
-	WeaponShotgunFoV.SetBoundaries(0.f, 30.f);
-	WeaponShotgunFoV.SetValue(3.f);
-	WeaponShotgunGroup.PlaceLabledControl("Field of View", this, &WeaponShotgunFoV);
+	sniper.AutoFireKey.SetFileId(XorStr("sniper_autofirekey"));
+	AimbotGroup.PlaceLabledControl(5, XorStr(""), this, &sniper.AutoFireKey);
 
-	WeaponShotgunRecoil.SetFileId("snip_recoil");
-	WeaponShotgunRecoil.SetBoundaries(0.f, 2.f);
-	WeaponShotgunRecoil.SetValue(1.f);
-	WeaponShotgunGroup.PlaceLabledControl("Recoil Control", this, &WeaponShotgunRecoil);
+	sniper.AutoFireMode.SetFileId(XorStr("sniper_autofiremode"));
+	sniper.AutoFireMode.AddItem(XorStr("Bone"));
+	sniper.AutoFireMode.AddItem(XorStr("Key Press"));
+	AimbotGroup.PlaceLabledControl(5, XorStr(""), this, &sniper.AutoFireMode);
 
-	WeaponShotgunAimtime.SetValue(0);
-	WeaoponShotgunStartAimtime.SetValue(0);
+	sniper.AutoFireTarget.SetFileId(XorStr("sniper_autofiretarget"));
+	sniper.AutoFireTarget.AddItem(XorStr("Head"));
+	sniper.AutoFireTarget.AddItem(XorStr("Neck"));
+	sniper.AutoFireTarget.AddItem(XorStr("Chest"));
+	sniper.AutoFireTarget.AddItem(XorStr("Stomach"));
+	sniper.AutoFireTarget.AddItem(XorStr("Pelvis"));
+	sniper.AutoFireTarget.AddItem(XorStr("Left arm"));
+	sniper.AutoFireTarget.AddItem(XorStr("Right arm"));
+	sniper.AutoFireTarget.AddItem(XorStr("Left leg"));
+	sniper.AutoFireTarget.AddItem(XorStr("Right leg"));
+	AimbotGroup.PlaceLabledControl(5, XorStr("Autofire bone"), this, &sniper.AutoFireTarget);
 
-#pragma endregion
+	sniper.FieldOfView.SetFileId(XorStr("sniper_fov"));
+	sniper.FieldOfView.SetBoundaries(0, 90);
+	sniper.FieldOfView.extension = XorStr( "°" );
+	sniper.FieldOfView.SetValue(0);
+	sniper.FieldOfView.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(5, XorStr("Limit FOV"), this, &sniper.FieldOfView);
 
-#pragma region Machineguns
-	WeaponMGGroup.SetPosition(528, 365);
-	WeaponMGGroup.SetText("Heavy");
-	WeaponMGGroup.SetSize(240, 136);
-	RegisterControl(&WeaponMGGroup);
+	if (macsys.is_dev)
+	{
+		sniper.ReactionTime.SetFileId(XorStr("sniper_reaction"));
+		sniper.ReactionTime.AddItem(XorStr("Slow"));
+		sniper.ReactionTime.AddItem(XorStr("Medium"));
+		sniper.ReactionTime.AddItem(XorStr("Fast"));
+		sniper.ReactionTime.AddItem(XorStr("Insane"));
+		AimbotGroup.PlaceLabledControl(5, XorStr("Reaction time"), this, &sniper.ReactionTime);
+	}
 
-	WeaponMGHitbox.SetFileId("mg_hitbox");
-	WeaponMGHitbox.AddItem("Head");
-	WeaponMGHitbox.AddItem("Neck");
-	WeaponMGHitbox.AddItem("Chest");
-	WeaponMGHitbox.AddItem("Stomach");
-	WeaponMGHitbox.AddItem("Multihitbox");
-	WeaponMGGroup.PlaceLabledControl("Hitbox", this, &WeaponMGHitbox);
+	sniper.Smoothing.SetFileId(XorStr("sniper_smoothing"));
+	sniper.Smoothing.SetBoundaries(0, 5);
+	sniper.Smoothing.SetValue(0);
+	sniper.Smoothing.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(5, XorStr("Sensitivity"), this, &sniper.Smoothing);
 
-	WeaponMGSpeed.SetFileId("mg_speed");
-	WeaponMGSpeed.SetBoundaries(0.f, 100.f);
-	WeaponMGSpeed.SetValue(1.0f);
-	WeaponMGGroup.PlaceLabledControl("Max Speed", this, &WeaponMGSpeed);
-
-	WeaponMGFoV.SetFileId("mg_fov");
-	WeaponMGFoV.SetBoundaries(0.f, 30.f);
-	WeaponMGFoV.SetValue(4.f);
-	WeaponMGGroup.PlaceLabledControl("Field of View", this, &WeaponMGFoV);
-
-	WeaponMGRecoil.SetFileId("mg_recoil");
-	WeaponMGRecoil.SetBoundaries(0.f, 2.f);
-	WeaponMGRecoil.SetValue(1.f);
-	WeaponMGGroup.PlaceLabledControl("Recoil Control", this, &WeaponMGRecoil);
-
-	WeaponMGAimtime.SetValue(0);
-	WeaoponMGStartAimtime.SetValue(0);
-
-#pragma endregion
+	sniper.Recoil.SetFileId(XorStr("sniper_recoil"));
+	sniper.Recoil.SetBoundaries(0, 2);
+	sniper.Recoil.SetValue(0);
+	sniper.Recoil.SetFormat(FORMAT_DECDIG2);
+	AimbotGroup.PlaceLabledControl(5, XorStr("Recoil"), this, &sniper.Recoil);
 }
 
 void CVisualTab::Setup()
 {
-	SetTitle("c");
+	SetTitle(XorStr("c"));
 
-	ActiveLabel.SetPosition(16, 16);
-	ActiveLabel.SetText("Active");
-	RegisterControl(&ActiveLabel);
+	// Player ESP
+	PlayerESP.SetText(XorStr("Player ESP"));
+	PlayerESP.SetSize(293, 380);
+	PlayerESP.SetPosition(24, 16);
+	PlayerESP.AddTab(CGroupTab(XorStr("One"), 1));
+	PlayerESP.AddTab(CGroupTab(XorStr("Two"), 2));
+	RegisterControl(&PlayerESP);
 
-	Active.SetFileId("active");
-	Active.SetPosition(66, 16);
-	RegisterControl(&Active);
+	player.ActivationType.SetFileId(XorStr("v_player_activationtype"));
+	player.ActivationType.AddItem(XorStr("Default"));
+	player.ActivationType.AddItem(XorStr("Visible Only"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Activation type"), this, &player.ActivationType);
 
-#pragma region Options
-	OptionsGroup.SetText("Options");
-	OptionsGroup.SetPosition(16, 48);
-	OptionsGroup.SetSize(193, 430);
-	RegisterControl(&OptionsGroup);
+	player.EspTeammates.SetFileId(XorStr("v_player_teammates"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Teammates"), this, &player.EspTeammates);
 
-	OptionsBox.SetFileId("opt_box");
-	OptionsBox.AddItem("Off");
-	OptionsBox.AddItem("Corners");
-	OptionsBox.AddItem("Full");
-	OptionsGroup.PlaceLabledControl("Box", this, &OptionsBox);
+	player.EspBox.SetFileId(XorStr("v_player_espbox"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Box"), this, &player.EspBox);
 
-	OptionsName.SetFileId("opt_name");
-	OptionsGroup.PlaceLabledControl("Name", this, &OptionsName);
+	player.BoxColor.SetFileId(XorStr("v_player_espbox_color"));
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.BoxColor);
 
-	OptionsHealth.SetFileId("opt_hp");
-	OptionsGroup.PlaceLabledControl("Health", this, &OptionsHealth);
+	player.BoxType.SetFileId(XorStr("v_player_boxtype"));
+	player.BoxType.AddItem(XorStr("Full"));
+	player.BoxType.AddItem(XorStr("Cornered"));
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.BoxType);
 
-	OptionsArmor.SetFileId("opt_armor");
-	OptionsGroup.PlaceLabledControl("Armor", this, &OptionsArmor);
+	player.EspMode.SetFileId(XorStr("v_player_espmode"));
+	player.EspMode.AddItem(XorStr("Static"));
+	player.EspMode.AddItem(XorStr("Dynamic"));
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.EspMode);
 
-	OptionsMoney.SetFileId("opt_money");
-	OptionsGroup.PlaceLabledControl("Money", this, &OptionsMoney);
+	player.EspOutlines.SetFileId(XorStr("v_player_outlines"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Outlined"), this, &player.EspOutlines);
 
-	OptionsWeapon.SetFileId("opt_weapon");
-	OptionsGroup.PlaceLabledControl("Weapon", this, &OptionsWeapon);
+	player.BoxFill.SetFileId(XorStr("v_player_boxfill"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Box Fill"), this, &player.BoxFill);
+
+	player.BoxFillOpacity.SetFileId(XorStr("v_player_boxfillopacity"));
+	player.BoxFillOpacity.SetBoundaries(0, 100);
+	player.BoxFillOpacity.extension = XorStr( "%%" );
+	player.BoxFillOpacity.SetValue(0);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.BoxFillOpacity);
+
+	player.Glow.SetFileId(XorStr("v_player_glow"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Glow"), this, &player.Glow);
+
+	player.GlowColor.SetFileId(XorStr("v_player_glowcolor"));
+	player.GlowColor.SetColor(24, 130, 230, 255);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.GlowColor);
+
+	player.GlowOpacity.SetFileId(XorStr("v_player_glowopacity"));
+	player.GlowOpacity.SetBoundaries(0, 100);
+	player.GlowOpacity.extension = XorStr( "%%" );
+	player.GlowOpacity.SetValue(0);
+	//player.GlowOpacity.SetFollowingChar("%");
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.GlowOpacity);
+
+	player.ShowHealth.SetFileId(XorStr("v_player_health"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Health"), this, &player.ShowHealth);
+
+	player.ShowHealthText.SetFileId(XorStr("v_player_healthtext"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Health text"), this, &player.ShowHealthText);
+
+	player.ShowArmor.SetFileId(XorStr("v_player_armor"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Armor"), this, &player.ShowArmor);
 	
-	OptionsBarrels.SetFileId("opt_barrels");
-	OptionsGroup.PlaceLabledControl("Trace Lines", this, &OptionsBarrels);
+	player.ArmorColor.SetFileId(XorStr("v_player_armor_color"));
+	player.ArmorColor.SetColor(86, 123, 190, 255);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.ArmorColor);
 
-	OtherHitmarker.SetFileId("otr_hitmarker");
-	OptionsGroup.PlaceLabledControl("Hitmarker", this, &OtherHitmarker);
+	player.ShowSkeletons.SetFileId(XorStr("v_player_skeletons"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Skeletons"), this, &player.ShowSkeletons);
 
-	HitmarkerSound.SetFileId("otr_hitmarkersound");
-	OptionsGroup.PlaceLabledControl("Hitmarker Sound", this, &HitmarkerSound);
+	player.SkeletonColor.SetFileId(XorStr("v_player_skeletons_color"));
+	player.SkeletonColor.SetColor(255, 255, 255, 255);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.SkeletonColor);
 
-	OptionsInfo.SetFileId("opt_info");
-	OptionsGroup.PlaceLabledControl("Info", this, &OptionsInfo);
+	player.ShowHitbones.SetFileId(XorStr("v_player_hitbones"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Hitbones"), this, &player.ShowHitbones);
 
-	OptionsChams.SetFileId("opt_chams");
-	OptionsChams.AddItem("Off");
-	OptionsChams.AddItem("Normal");
-	OptionsChams.AddItem("Flat");
-	OptionsGroup.PlaceLabledControl("Chams Legit", this, &OptionsChams);
+	player.HitbonesColor.SetFileId(XorStr("v_player_hitbones_color"));
+	player.HitbonesColor.SetColor(255, 255, 255, 255);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.HitbonesColor);
 
-	OptionsGlow.SetFileId("opt_glow");
-	OptionsGlow.AddItem("Off");
-	OptionsGlow.AddItem("Enable");
-	OptionsGroup.PlaceLabledControl("Glow", this, &OptionsGlow);
+	player.SnapLines.SetFileId(XorStr("v_player_snaplines"));
+	PlayerESP.PlaceLabledControl(1, XorStr("Snap lines"), this, &player.SnapLines);
 
-	OptionsSkeleton.SetFileId("opt_bone");
-	OptionsGroup.PlaceLabledControl("Skeleton", this, &OptionsSkeleton);
+	player.SnapLinesColor.SetFileId(XorStr("v_player_snaplines_color"));
+	player.SnapLinesColor.SetColor(255, 255, 255, 255);
+	PlayerESP.PlaceLabledControl(1, XorStr(""), this, &player.SnapLinesColor);
 
-	OptionsCompRank.SetFileId("opt_comprank");
-	OptionsGroup.PlaceLabledControl("Comp Rank", this, &OptionsCompRank);
+	player.DirectionArrow.SetFileId( XorStr( "v_direction_arrow" ) );
+	PlayerESP.PlaceLabledControl( 1, XorStr( "Direction arrow" ), this, &player.DirectionArrow );
 
-	lbyidicador.SetFileId("opt_lbyidicador");
-	OptionsGroup.PlaceLabledControl("LBY Indicador", this, &lbyidicador);
+	player.DirectionArrowColor.SetFileId( XorStr( "v_direction_arrowcolor" ) );
+	PlayerESP.PlaceLabledControl( 1, XorStr( "" ), this, &player.DirectionArrowColor );
 
-#pragma endregion Setting up the Options controls
+	player.ShowPlayerNames.SetFileId(XorStr("v_player_playernames"));
+	PlayerESP.PlaceLabledControl(2, XorStr("Player name"), this, &player.ShowPlayerNames);
 
-#pragma region Filters
-	FiltersGroup.SetText("Filters");
-	FiltersGroup.SetPosition(225, 48);
-	FiltersGroup.SetSize(193, 430);
-	RegisterControl(&FiltersGroup);
+	player.ShowWeaponNames.SetFileId(XorStr("v_player_weaponnames"));
+	PlayerESP.PlaceLabledControl(2, XorStr("Weapon name"), this, &player.ShowWeaponNames);
 
-	FiltersAll.SetFileId("ftr_all");
-	FiltersGroup.PlaceLabledControl("All", this, &FiltersAll);
+	player.PlayerAmmo.SetFileId(XorStr("v_player_playerammo"));
+	PlayerESP.PlaceLabledControl(2, XorStr("Ammo"), this, &player.PlayerAmmo);
 
-	FiltersPlayers.SetFileId("ftr_players");
-	FiltersGroup.PlaceLabledControl("Players", this, &FiltersPlayers);
+	player.HitAngle.SetFileId(XorStr("v_player_hitangle"));
+	PlayerESP.PlaceLabledControl(2, XorStr("Hit angle"), this, &player.HitAngle);
 
-	FiltersEnemiesOnly.SetFileId("ftr_enemyonly");
-	FiltersGroup.PlaceLabledControl("Enemies Only", this, &FiltersEnemiesOnly);
+	player.Scoped.SetFileId(XorStr("v_player_scoped"));
+	PlayerESP.PlaceLabledControl(2, XorStr("Scoped"), this, &player.Scoped);
 
-	FiltersWeapons.SetFileId("ftr_weaps");
-	FiltersGroup.PlaceLabledControl("Weapons", this, &FiltersWeapons);
+	if (macsys.is_administrator)
+	{
+		player.Dormant.SetFileId(XorStr("v_player_dormant"));
+		PlayerESP.PlaceLabledControl(2, XorStr("Dormant"), this, &player.Dormant);
+	}
 
-	//FiltersChickens.SetFileId("ftr_chickens");
-	//FiltersGroup.PlaceLabledControl("Chickens", this, &FiltersChickens);
+	// Chams Group
+	ChamsGroup.SetText(XorStr("Colored models"));
+	ChamsGroup.SetSize(293, 144);
+	ChamsGroup.SetPosition(24, 412);
+	RegisterControl(&ChamsGroup);
 
-	FiltersC4.SetFileId("ftr_c4");
-	FiltersGroup.PlaceLabledControl("C4", this, &FiltersC4);
-#pragma endregion Setting up the Filters controls
+	PlayerChamType.SetFileId(XorStr("v_coloredmodels_mode"));
+	PlayerChamType.AddItem(XorStr("Default"));
+	PlayerChamType.AddItem(XorStr("Color"));
+	PlayerChamType.AddItem(XorStr( "Flat" ) );
+	PlayerChamType.AddItem(XorStr("Wireframe"));
+	PlayerChamType.AddItem(XorStr("Ghost"));
+	ChamsGroup.PlaceLabledControl(0, XorStr("Mode"), this, &PlayerChamType);
 
-#pragma region Other
-	OtherGroup.SetText("Other");
-	OtherGroup.SetPosition(434, 48);
-	OtherGroup.SetSize(334, 430);
-	RegisterControl(&OtherGroup);
+	ChamsEnemies.SetFileId(XorStr("v_coloredmodels_enemies"));
+	ChamsGroup.PlaceLabledControl(0, XorStr("Enemies"), this, &ChamsEnemies);
 
-	OtherCrosshair.SetFileId("otr_crosshair");
-	OtherCrosshair.AddItem("Off");
-	OtherCrosshair.AddItem("Recoil");
-	OtherCrosshair.AddItem("Spread");
-	OtherGroup.PlaceLabledControl("Override Crosshair", this, &OtherCrosshair);
+	ChamsEnemies_Color.SetFileId(XorStr("v_coloredmodels_enemies_color"));
+	ChamsGroup.PlaceLabledControl(0, XorStr(""), this, &ChamsEnemies_Color);
 
-	OtherNoHands.SetFileId("otr_hands");
-	OtherNoHands.AddItem("Off");
-	OtherNoHands.AddItem("None");
-	OtherNoHands.AddItem("Transparent");
-	OtherNoHands.AddItem("Chams");
-	OtherNoHands.AddItem("Rainbow");
-	OtherGroup.PlaceLabledControl("Hands", this, &OtherNoHands);
+	ChamsEnemiesBehindWall.SetFileId(XorStr("v_coloredmodels_enemiesnovis"));
+	ChamsGroup.PlaceLabledControl(0, XorStr("Enemies (behind wall)"), this, &ChamsEnemiesBehindWall);
 
-	SniperCrosshair.SetFileId("otr_snipercrosshair");
-	OtherGroup.PlaceLabledControl("Sniper Crosshair", this, &SniperCrosshair);
+	ChamsEnemiesBehindWall_Color.SetFileId(XorStr("v_coloredmodels_enemiesnovis_color"));
+	ChamsGroup.PlaceLabledControl(0, XorStr(""), this, &ChamsEnemiesBehindWall_Color);
 
-	DirectionArrow.SetFileId("opt_directionarrow");
-	OptionsGroup.PlaceLabledControl("Direction Arrow", this, &DirectionArrow);
+	ChamsTeammates.SetFileId(XorStr("v_coloredmodels_teammates"));
+	ChamsGroup.PlaceLabledControl(0, XorStr("Teammates"), this, &ChamsTeammates);
 
-	NightSky.SetFileId("otr_nightsky");
-	OtherGroup.PlaceLabledControl("Night Sky", this, &NightSky);
+	ChamsTeammates_Color.SetFileId(XorStr("v_coloredmodels_teammates_color"));
+	ChamsGroup.PlaceLabledControl(0, XorStr(""), this, &ChamsTeammates_Color);
 
-	DisablePostProcess.SetFileId("otr_disablepostprocess");
-	OtherGroup.PlaceLabledControl("Disable Post Process", this, &DisablePostProcess);
+	ChamsTeammatesBehindWall.SetFileId(XorStr("v_coloredmodels_teammatesnovis"));
+	ChamsGroup.PlaceLabledControl(0, XorStr("Teammates (behind wall)"), this, &ChamsTeammatesBehindWall);
 
-	OtherNoFlash.SetFileId("otr_noflash");
-	OtherGroup.PlaceLabledControl("Remove Flash", this, &OtherNoFlash);
+	ChamsTeammatesBehindWall_Color.SetFileId(XorStr("v_coloredmodels_teammatesnovis_color"));
+	ChamsGroup.PlaceLabledControl(0, XorStr(""), this, &ChamsTeammatesBehindWall_Color);
 
-	OtherNoSmoke.SetFileId("otr_nosmoke");
-	OtherGroup.PlaceLabledControl("Remove Smoke", this, &OtherNoSmoke);
+	// Other ESP
+	OtherESP.SetText(XorStr("Other ESP"));
+	OtherESP.SetSize(293, 209);
+	OtherESP.SetPosition(333, 16);
+	RegisterControl(&OtherESP);
 
-	OtherNoScope.SetFileId("otr_noscope");
-	OtherGroup.PlaceLabledControl("Remove Scope", this, &OtherNoScope);
+	Weapons.SetFileId(XorStr("v_weapons"));
+	OtherESP.PlaceLabledControl(0, XorStr("Weapons"), this, &Weapons);
 
-	OtherNoVisualRecoil.SetFileId("otr_visrecoil");
-	OtherGroup.PlaceLabledControl("No Visual Recoil", this, &OtherNoVisualRecoil);
+	WeaponsColor.SetFileId(XorStr("v_weapons_color"));
+	OtherESP.PlaceLabledControl(0, XorStr(""), this, &WeaponsColor);
 
-	Clock.SetFileId("otr_clock");
-	Clock.SetState(true);
-	OtherGroup.PlaceLabledControl("Hours", this, &Clock);
+	DroppedWeapons.SetFileId(XorStr("v_droppedweapons"));
+	OtherESP.PlaceLabledControl(0, XorStr("Dropped weapons"), this, &DroppedWeapons);
 
-	Watermark.SetFileId("otr_watermarker");
-	Watermark.SetState(true);
-	OtherGroup.PlaceLabledControl("Watermark", this, &Watermark);
+	DroppedC4.SetFileId(XorStr("v_droppedc4"));
+	OtherESP.PlaceLabledControl(0, XorStr("C4"), this, &DroppedC4);
 
-	OtherRadar.SetFileId("otr_radar");
-	OtherGroup.PlaceLabledControl("Radar", this, &OtherRadar);
+	DroppedDefuseKit.SetFileId(XorStr("v_droppeddefusekit"));
+	OtherESP.PlaceLabledControl(1, XorStr("Defuse kits"), this, &DroppedDefuseKit);
 
-	OtherViewmodelFOV.SetFileId("otr_viewfov");
-	OtherViewmodelFOV.SetBoundaries(0.f, 180.f);
-	OtherViewmodelFOV.SetValue(0.f);
-	OtherGroup.PlaceLabledControl("Viewmodel FOV", this, &OtherViewmodelFOV);
+	BulletImpacts.SetFileId(XorStr("v_bulletimpacts"));
+	OtherESP.PlaceLabledControl(0, XorStr("Bullet impacts"), this, &BulletImpacts);
 
-	OtherFOV.SetFileId("otr_fov");
-	OtherFOV.SetBoundaries(0.f, 180.f);
-	OtherFOV.SetValue(90.f);
-	OtherGroup.PlaceLabledControl("Field of View", this, &OtherFOV);
+	BulletImpactsColor.SetFileId(XorStr("v_bulletimpacts_color"));
+	OtherESP.PlaceLabledControl(0, XorStr(""), this, &BulletImpactsColor);
 
-	AmbientRed.SetFileId("otr_ambientred");
-	AmbientRed.SetBoundaries(0.f, 10.f);
-	AmbientRed.SetValue(0.f);
-	OtherGroup.PlaceLabledControl("Ambient Red", this, &AmbientRed);
+	Hitmarkers.SetFileId(XorStr("v_hitmarkers"));
+	OtherESP.PlaceLabledControl(0, XorStr("Hitmarkers"), this, &Hitmarkers);
 
-	AmbientGreen.SetFileId("otr_ambientgreen");
-	AmbientGreen.SetBoundaries(0.f, 10.f);
-	AmbientGreen.SetValue(0.f);
-	OtherGroup.PlaceLabledControl("Ambient Green", this, &AmbientGreen);
+	DamageIndicators.SetFileId(XorStr("v_damageindicators"));
+	OtherESP.PlaceLabledControl(0, XorStr("Damage indicators"), this, &DamageIndicators);
 
-	AmbientBlue.SetFileId("otr_ambientblue");
-	AmbientBlue.SetBoundaries(0.f, 10.f);
-	AmbientBlue.SetValue(0.f);
-	OtherGroup.PlaceLabledControl("Ambient Blue", this, &AmbientBlue);
+	SpreadCrosshair.SetFileId(XorStr("v_spreadcrosshair"));
+	OtherESP.PlaceLabledControl(0, XorStr("Spread crosshair"), this, &SpreadCrosshair);
 
-#pragma endregion Setting up the Other controls
+	PenetrationReticle.SetFileId(XorStr("v_penetrationreticle"));
+	OtherESP.PlaceLabledControl(0, XorStr("Penetration reticle"), this, &PenetrationReticle);
+
+	AntiAimLines.SetFileId( "v_aalines" );
+	OtherESP.PlaceLabledControl( 0, XorStr( "Anti-aim lines" ), this, &AntiAimLines );
+
+	if (macsys.is_dev) {
+		GhostChams.SetFileId(XorStr("v_ghostchams"));
+		OtherESP.PlaceLabledControl(0, XorStr("Ghost chams"), this, &GhostChams);
+	}
+
+	// Effects
+	Effects.SetText(XorStr("Effects"));
+	Effects.SetSize(293, 208);
+	Effects.SetPosition(333, 241);
+	RegisterControl(&Effects);
+
+	FovChanger.SetFileId(XorStr("v_fieldofview"));
+	FovChanger.SetBoundaries(0, 90);
+	FovChanger.SetValue(0);
+	Effects.PlaceLabledControl(0, XorStr("Field of view"), this, &FovChanger);
+
+	RemoveParticles.SetFileId(XorStr("v_removeparticles"));
+	Effects.PlaceLabledControl(0, XorStr("Remove particles"), this, &RemoveParticles);
+
+	RemoveSmoke.SetFileId(XorStr("v_removesmoke"));
+	Effects.PlaceLabledControl(0, XorStr("Remove smoke"), this, &RemoveSmoke);
+
+	NoVisualRecoil.SetFileId(XorStr("v_novisualrecoil"));
+	Effects.PlaceLabledControl(0, XorStr("Remove visual recoil"), this, &NoVisualRecoil);
+
+	RemoveWeaponScope.SetFileId(XorStr("v_removeweaponscope"));
+	Effects.PlaceLabledControl(0, XorStr("Remove weapon scope"), this, &RemoveWeaponScope);
+
+	Thirdperson.SetFileId(XorStr("v_thirdperson"));
+	Effects.PlaceLabledControl(0, XorStr("Force third person"), this, &Thirdperson);
+
+	ThirdpersonToggle.SetFileId(XorStr("v_thirdpersontoggle"));
+	Effects.PlaceLabledControl(0, XorStr(""), this, &ThirdpersonToggle);
+
+	VisualizedAngle.SetFileId(XorStr("v_visualizedangle"));
+	VisualizedAngle.AddItem(XorStr("Real"));
+	VisualizedAngle.AddItem(XorStr("Fake"));
+	VisualizedAngle.AddItem(XorStr("Lowerbody"));
+	Effects.PlaceLabledControl(0, XorStr(""), this, &VisualizedAngle);
+
+	NightMode.SetFileId(XorStr("v_nightmode"));
+	Effects.PlaceLabledControl(0, XorStr("Brightness adjustment"), this, &NightMode);
+
+	DisablePostProcessing.SetFileId(XorStr("v_disablepostprocessing"));
+	Effects.PlaceLabledControl(0, XorStr("Disable post processing"), this, &DisablePostProcessing);
 }
 
 void CMiscTab::Setup()
 {
-	SetTitle("d");
+	SetTitle(XorStr("d"));
 
-#pragma region Other
-	OtherGroup.SetPosition(408, 16);
-	OtherGroup.SetSize(360, 430);
-	OtherGroup.SetText("Other");
-	RegisterControl(&OtherGroup);
+	//Miscellaneous
+	Miscellaneous.SetText(XorStr("Miscellaneous"));
+	Miscellaneous.SetSize(293, 540);
+	Miscellaneous.SetPosition(24, 16);
+	RegisterControl(&Miscellaneous);
 
-#pragma region GloveModel
-	Gloves.SetPosition(16, 300);
-	Gloves.SetText("Override Gloves");
-	Gloves.SetSize(370, 100);
-	RegisterControl(&Gloves);
+	BunnyHop.SetFileId(XorStr("m_autohop"));
+	Miscellaneous.PlaceLabledControl(0, XorStr("Bunny hop"), this, &BunnyHop);
 
-	EnableGloves.SetFileId("gloves_enable");
-	Gloves.PlaceLabledControl("Enable Glovechanger", this, &EnableGloves);
+	Autostrafe.SetFileId(XorStr("m_autostrafe"));
+	Miscellaneous.PlaceLabledControl(0, XorStr("Air strafe"), this, &Autostrafe);
 
-	GloveModel.SetFileId("glove_model");
-	GloveModel.AddItem("Off");
-	GloveModel.AddItem("Bloodhound");
-	GloveModel.AddItem("Handwrap");
-	GloveModel.AddItem("Driver");
-	GloveModel.AddItem("Sport");
-	GloveModel.AddItem("Motorcycle");
-	GloveModel.AddItem("Specialist");
-	Gloves.PlaceLabledControl("Glove Model", this, &GloveModel);
+	AutoStrafeType.SetFileId(XorStr("m_autostrafetype"));
+	AutoStrafeType.AddItem(XorStr("Normal"));
+	AutoStrafeType.AddItem(XorStr("Silent"));
+	Miscellaneous.PlaceLabledControl(0, XorStr(""), this, &AutoStrafeType);
 
-	GloveSkin.SetFileId("glove_skin");
-	GloveSkin.AddItem("Off");
-	GloveSkin.AddItem("Bloodhound - Snakebite");
-	GloveSkin.AddItem("Bloodhound - Charred");
-	GloveSkin.AddItem("Bloodhound - Guerrilla");
-	GloveSkin.AddItem("Bloodhound - Bronzed");
-	GloveSkin.AddItem("Handwrap - Slaughter");
-	GloveSkin.AddItem("Handwrap - Badlands");
-	GloveSkin.AddItem("Handwrap - Leather");
-	GloveSkin.AddItem("Handwrap - Spruce DDPAT");
-	GloveSkin.AddItem("Driver - Crimson Weave");
-	GloveSkin.AddItem("Driver - Lunar Weave");
-	GloveSkin.AddItem("Driver - Diamondback");
-	GloveSkin.AddItem("Driver - Convoy");
-	GloveSkin.AddItem("Sport - Pandoras Box");
-	GloveSkin.AddItem("Sport - Hedge Naze");
-	GloveSkin.AddItem("Sport - Superconductor");
-	GloveSkin.AddItem("Sport - Arid");
-	GloveSkin.AddItem("Motorcycle - Spearmint");
-	GloveSkin.AddItem("Motorcycle - Cool Mint");
-	GloveSkin.AddItem("Motorcycle - Boom");
-	GloveSkin.AddItem("Motorcycle - Eclipse");
-	GloveSkin.AddItem("Specialist - Crimson Kimono");
-	GloveSkin.AddItem("Specialist - Emerald Web");
-	GloveSkin.AddItem("Specialist - Foundation");
-	GloveSkin.AddItem("Specialist - Forest DDPAT");
-	Gloves.PlaceLabledControl("Glove Skin", this, &GloveSkin);
+	/*ZHop.SetFileId(XorStr("m_zhop"));
+	MainGroup.PlaceLabledControl(1, XorStr("Z Strafe"), this, &ZHop);
 
-	GlovesApply.SetText("Apply Gloves");
-	GlovesApply.SetCallback(GlovesApplyCallbk);
-	GlovesApply.SetPosition(16, 410);//400, 480
-	GlovesApply.SetSize(371, 106);
-	RegisterControl(&GlovesApply);
+	ZHopKey.SetFileId(XorStr("m_zhopkey"));
+	MainGroup.PlaceLabledControl(1, XorStr(""), this, &ZHopKey);*/
 
-#pragma endregion
+	if ( macsys.is_administrator )
+	{
+		CircleStrafe.SetFileId( XorStr( "m_circlestrafe" ) );
+		Miscellaneous.PlaceLabledControl( 0, XorStr( "Circle strafe" ), this, &CircleStrafe );
 
-	OtherAutoJump.SetFileId("otr_autojump");
-	OtherAutoJump.AddItem("Off");
-	OtherAutoJump.AddItem("Normal");
-	OtherGroup.PlaceLabledControl("Auto Jump", this, &OtherAutoJump);
+		FakeWalk.SetFileId( XorStr( "m_fakewalk" ) );
+		Miscellaneous.PlaceLabledControl( 0, XorStr( "Fake walk" ), this, &FakeWalk );
 
-	OtherEdgeJump.SetFileId("otr_edgejump");
-	OtherGroup.PlaceLabledControl("Edge Jump", this, &OtherEdgeJump);
+		FakeWalkKey.SetFileId( XorStr( "m_fakewalkkey" ) );
+		Miscellaneous.PlaceLabledControl( 0, XorStr( "" ), this, &FakeWalkKey );
 
-	OtherAutoStrafe.SetFileId("otr_strafe");
-	OtherAutoStrafe.AddItem("Off");
-	OtherAutoStrafe.AddItem("Legit");
-	OtherAutoStrafe.AddItem("Rage");
-	OtherGroup.PlaceLabledControl("Auto Strafer", this, &OtherAutoStrafe);
+		SpectatorList.SetFileId( XorStr( "m_spectatorlist" ) );
+		Miscellaneous.PlaceLabledControl( 0, XorStr( "Spectator list" ), this, &SpectatorList );
+	}
 
-	OtherSafeMode.SetFileId("otr_safemode");
-	OtherSafeMode.SetState(true);
-	OtherGroup.PlaceLabledControl("Anti Untrust", this, &OtherSafeMode);
+	Blockbot.SetFileId( "m_blockbot" );
+	Miscellaneous.PlaceLabledControl( 0, "Blockbot", this, &Blockbot );
 
-	OtherChatSpam.SetFileId("otr_spam");
-	OtherChatSpam.AddItem("Off");
-	OtherChatSpam.AddItem("Namestealer");
-	OtherChatSpam.AddItem("Inter Chat");
-	OtherChatSpam.AddItem("Inter Name");
-	OtherChatSpam.AddItem("White Name");
-	OtherGroup.PlaceLabledControl("Chat Spam", this, &OtherChatSpam);
+	BlockbotBind.SetFileId( "m_blockbotkey" );
+	Miscellaneous.PlaceLabledControl( 0, "", this, &BlockbotBind );
 
-	TrashTalk.SetFileId("otr_trashtalk");
-	OtherGroup.PlaceLabledControl("ChatSpam Kill", this, &TrashTalk);
+	AutoAccept.SetFileId(XorStr("m_autoaccept"));
+	Miscellaneous.PlaceLabledControl(0, XorStr("Auto-accept matchmaking"), this, &AutoAccept);
 
-	OtherClantag.SetFileId("otr_spam");
-	OtherClantag.AddItem("Off");
-	OtherClantag.AddItem("Inter");
-	OtherClantag.AddItem("Blank");
-	OtherClantag.AddItem("Valve");
-	OtherClantag.AddItem("Hours");
-	OtherGroup.PlaceLabledControl("Custom Clantag", this, &OtherClantag);
+	ClanChanger.SetFileId(XorStr("m_clanchanger"));
+	Miscellaneous.PlaceLabledControl(0, XorStr("Clan tag spammer"), this, &ClanChanger);
 
-	OtherTeamChat.SetFileId("otr_teamchat");
-	OtherGroup.PlaceLabledControl("Team Chat Only", this, &OtherTeamChat);
+	NameChanger.SetFileId(XorStr("m_namechanger"));
+	Miscellaneous.PlaceLabledControl(0, XorStr("Name spammer"), this, &NameChanger);
 
-	OtherChatDelay.SetFileId("otr_chatdelay");
-	OtherChatDelay.SetBoundaries(0.1, 3.0);
-	OtherChatDelay.SetValue(1.0);
-	OtherGroup.PlaceLabledControl("Spam Delay", this, &OtherChatDelay);
+	NameChangerType.SetFileId(XorStr("m_namechangertype"));
+	NameChangerType.AddItem(XorStr("Off"));
+	NameChangerType.AddItem(XorStr("Ayyware crasher"));
+	NameChangerType.AddItem(XorStr("Name stealer"));
+	NameChangerType.AddItem(XorStr("Silent"));
+	Miscellaneous.PlaceLabledControl(0, XorStr(""), this, &NameChangerType);
 
-	OtherAirStuck.SetFileId("otr_astuck");
-	OtherGroup.PlaceLabledControl("Air Stuck", this, &OtherAirStuck);
+	//DeveloperConsole.SetFileId(XorStr("m_devconsole"));
+	//MainGroup.PlaceLabledControl(0, XorStr("Developer Console"), this, &DeveloperConsole);
 
-	OtherThirdperson.SetFileId("aa_thirdpsr");
-	OtherGroup.PlaceLabledControl("Thirdperson", this, &OtherThirdperson);
+	//Settings
+	SettingsGroup.SetText(XorStr("Settigns"));
+	SettingsGroup.SetSize(293, 90);
+	SettingsGroup.SetPosition(333, 16);
+	RegisterControl(&SettingsGroup);
 
-	OtherAutoAccept.SetFileId("otr_autoaccept");
-	OtherGroup.PlaceLabledControl("Auto Accept", this, &OtherAutoAccept);
+	MenuKeyLabel.SetText(XorStr("Menu key"));
+	SettingsGroup.PlaceLabledControl(0, XorStr(""), this, &MenuKeyLabel);
 
-#pragma endregion other random options
+	MenuKey.SetFileId(XorStr("m_menukey"));
+	MenuKey.SetKey(VK_INSERT);
+	SettingsGroup.PlaceLabledControl(0, XorStr(""), this, &MenuKey);
 
-#pragma region FakeLag
-	FakeLagGroup.SetPosition(16, 10);
-	FakeLagGroup.SetSize(370, 120);
-	FakeLagGroup.SetText("Fakelag");
-	RegisterControl(&FakeLagGroup);
+	MenuColor.SetFileId(XorStr("m_menucolor"));
+	MenuColor.SetColor(24, 130, 230, 255);
+	SettingsGroup.PlaceLabledControl(0, XorStr("Menu color"), this, &MenuColor);
 
-	FakeLagEnable.SetFileId("fakelag_enable");
-	FakeLagGroup.PlaceLabledControl("Fake Lag", this, &FakeLagEnable);
+	CheckboxUncheckedColor.SetFileId(XorStr("m_checkboxunchecked"));
+	CheckboxUncheckedColor.SetColor(255, 255, 255, 255);
+	SettingsGroup.PlaceLabledControl(0, XorStr("Checkbox unchecked"), this, &CheckboxUncheckedColor);
 
-	FakeLagChoke.SetFileId("fakelag_choke");
-	FakeLagChoke.SetBoundaries(0, 16);
-	FakeLagChoke.SetValue(0);
-	FakeLagGroup.PlaceLabledControl("Choke Factor", this, &FakeLagChoke);
+	AntiUntrusted.SetFileId(XorStr("m_antiuntrusted"));
+	AntiUntrusted.SetState(true);
+	SettingsGroup.PlaceLabledControl(0, XorStr("Anti-unstrusted"), this, &AntiUntrusted);
 
-	FakeLagSend.SetFileId("fakelag_send");
-	FakeLagSend.SetBoundaries(0, 16);
-	FakeLagSend.SetValue(0);
-	FakeLagGroup.PlaceLabledControl("Send Factor", this, &FakeLagSend);
+	//Flag
+	FlagGroup.SetText(XorStr("Fake Lag"));
+	FlagGroup.SetSize(293, 140);
+	FlagGroup.SetPosition(333, 122);
+	RegisterControl(&FlagGroup);
 
-	ChokeRandomize.SetFileId("choke_random");
-	FakeLagGroup.PlaceLabledControl("Randomize Choke", this, &ChokeRandomize);
+	FlagEnable.SetFileId(XorStr("m_flagenabled"));
+	FlagGroup.PlaceLabledControl(0, XorStr("Fake lag"), this, &FlagEnable);
 
-	SendRandomize.SetFileId("send_random");
-	FakeLagGroup.PlaceLabledControl("Randomize Send", this, &SendRandomize);
+	FlagActivationType.SetFileId(XorStr("m_flagactivationtype"));
+	FlagActivationType.AddItem(XorStr("Always"));
+	FlagActivationType.AddItem(XorStr("While moving"));
+	FlagActivationType.AddItem(XorStr("In air"));
+	FlagGroup.PlaceLabledControl(0, XorStr(""), this, &FlagActivationType);
 
-#pragma region Buybot
-	BuyBotGroup.SetPosition(16, 140);
-	BuyBotGroup.SetSize(370, 150);
-	BuyBotGroup.SetText("Buybot");
-	RegisterControl(&BuyBotGroup);
+	FlagType.SetFileId(XorStr("m_flagtype"));
+	FlagType.AddItem(XorStr("Off"));
+	FlagType.AddItem(XorStr("Factor"));
+	FlagType.AddItem(XorStr("Step up"));
+	FlagType.AddItem(XorStr("Dynamic"));
+	FlagGroup.PlaceLabledControl(0, XorStr(""), this, &FlagType);
 
-	EnableBuyBot.SetFileId("bb_enable");
-	BuyBotGroup.PlaceLabledControl("Enable", this, &EnableBuyBot);
+	FlagLimit.SetFileId(XorStr("m_flaglimit"));
+	FlagLimit.SetBoundaries(0.f, 14.f);
+	FlagLimit.SetValue(0.f);
+	FlagGroup.PlaceLabledControl(0, XorStr("Limit"), this, &FlagLimit);
 
-	BuyBot.SetFileId("buybot");
-	BuyBot.AddItem("Off");
-	BuyBot.AddItem("Ak/M4");
-	BuyBot.AddItem("AWP");
-	BuyBot.AddItem("Auto + Duals");
-	BuyBotGroup.PlaceLabledControl("Buy Bot", this, &BuyBot);
+	DisableFlagWhileShooting.SetFileId(XorStr("m_disableflagwhileshooting"));
+	FlagGroup.PlaceLabledControl(0, XorStr("Disable while shooting"), this, &DisableFlagWhileShooting);
 
-	BuyBotGrenades.SetFileId("buybot_grenades");
-	BuyBotGrenades.AddItem("Off");
-	BuyBotGrenades.AddItem("Flash + Smoke + HE");
-	BuyBotGrenades.AddItem("Flash + Smoke + HE + Molo");
-	BuyBotGroup.PlaceLabledControl("Buy Grenades", this, &BuyBotGrenades);
+	//Presets
+	ConfigGroup.SetText(XorStr("Presets"));
+	ConfigGroup.SetSize(293, 278);
+	ConfigGroup.SetPosition(333, 278);
+	RegisterControl(&ConfigGroup);
 
-	BuyBotKevlar.SetFileId("buybot_kevlar");
-	BuyBotGroup.PlaceLabledControl("Buy Armor", this, &BuyBotKevlar);
+	/*SelectedConfig.SetFileId(XorStr("m_selctedconfig"));
+	SelectedConfig.AddItem(XorStr("Legit"));
+	SelectedConfig.AddItem(XorStr("Dualies"));
+	SelectedConfig.AddItem(XorStr("Scout"));
+	SelectedConfig.AddItem(XorStr("AK47"));
+	SelectedConfig.AddItem(XorStr("Auto"));
+	SelectedConfig.AddItem(XorStr("Casual"));
+	SelectedConfig.AddItem(XorStr("Rage"));
+	SelectedConfig.AddItem(XorStr("Nospread"));
+	ConfigGroup.PlaceLabledControl(0, XorStr(""), this, &SelectedConfig);*/
 
-	BuyBotDefuser.SetFileId("buybot_defuser");
-	BuyBotGroup.PlaceLabledControl("Buy Defuse Kit", this, &BuyBotDefuser);
+	ConfigListBox.SetHeightInItems(7);
+	list_configs();
+	ConfigGroup.PlaceLabledControl(0, XorStr(""), this, &ConfigListBox);
 
-#pragma endregion Buybot
-#pragma endregion fakelag shit
+	LoadConfig.SetText(XorStr("Load"));
+	LoadConfig.SetCallback(&load_callback);
+	ConfigGroup.PlaceLabledControl(0, "", this, &LoadConfig);
+
+	SaveConfig.SetText(XorStr("Save"));
+	SaveConfig.SetCallback(&save_callback);
+	ConfigGroup.PlaceLabledControl(0, "", this, &SaveConfig);
+
+	RemoveConfig.SetText(XorStr("Remove"));
+	RemoveConfig.SetCallback(&remove_config);
+	ConfigGroup.PlaceLabledControl(0, "", this, &RemoveConfig);
+
+	ConfigGroup.PlaceLabledControl(0, "", this, &NewConfigName);
+
+	AddConfig.SetText(XorStr("Add"));
+	AddConfig.SetCallback(&add_config);
+	ConfigGroup.PlaceLabledControl(0, "", this, &AddConfig);
 }
 
-void CSkinchangerTab::Setup()
+void CPlayersTab::Setup()
 {
-	SetTitle("e");
+	SetTitle(XorStr("f"));
 
-	SkinActive.SetPosition(20, 16);
-	SkinActive.SetText("Active");
-		RegisterControl(&SkinActive);
+	PlayerListControl.SetPosition(24, 16);
+	PlayerListControl.SetSize(293, 540);
+	PlayerListControl.SetHeightInItems(20);
+	RegisterControl(&PlayerListControl);
 
-	SkinEnable.SetFileId("Skin_enable");
-	SkinEnable.SetPosition(70, 18);
-	RegisterControl(&SkinEnable);
+	PlayerSettingsGroup.SetText(XorStr("Settings"));
+	PlayerSettingsGroup.SetSize(293, 540);
+	PlayerSettingsGroup.SetPosition(333, 16);
+	RegisterControl(&PlayerSettingsGroup);
 
-#pragma region Knife
-	KnifeGroup.SetPosition(16, 11);
-	KnifeGroup.SetText("Knife Beta");
-	KnifeGroup.SetSize(376, 80);
-	RegisterControl(&KnifeGroup);
+	PlayerForcePitch_Pitch.AddItem(XorStr("Eye angles"));
+	PlayerForcePitch_Pitch.AddItem(XorStr("Up"));
+	PlayerForcePitch_Pitch.AddItem(XorStr("Emotion"));
 
-	KnifeModel.SetFileId("knife_model");
-	KnifeModel.AddItem("Bayonet");
-	KnifeModel.AddItem("Bowie Knife");
-	KnifeModel.AddItem("Butterfly Knife");
-	KnifeModel.AddItem("Falchion Knife");
-	KnifeModel.AddItem("Flip Knife");
-	KnifeModel.AddItem("Gut Knife");
-	KnifeModel.AddItem("Huntsman Knife");
-	KnifeModel.AddItem("Karambit");
-	KnifeModel.AddItem("M9 Bayonet");
-	KnifeModel.AddItem("Shadow Daggers");
-	KnifeGroup.PlaceLabledControl("Knife", this, &KnifeModel);
+	PlayerForceYaw_Yaw.AddItem(XorStr("Default"));
+	PlayerForceYaw_Yaw.AddItem(XorStr("Correction"));
+	PlayerForceYaw_Yaw.AddItem(XorStr("Eye angles"));
+	PlayerForceYaw_Yaw.AddItem(XorStr("Sideways left"));
+	PlayerForceYaw_Yaw.AddItem(XorStr("Sideways right"));
+	PlayerForceYaw_Yaw.AddItem(XorStr("180°"));
 
-	KnifeSkin.SetFileId("knife_skin");
-	KnifeGroup.PlaceLabledControl("Skin ID", this, &KnifeSkin);
-#pragma endregion
-
-#pragma region Machineguns
-	MachinegunsGroup.SetPosition(408, 11);
-	MachinegunsGroup.SetText("Heavy");
-	MachinegunsGroup.SetSize(360, 80);
-	RegisterControl(&MachinegunsGroup);
-
-	NEGEVSkin.SetFileId("negev_skin");
-	NEGEVSkin.AddItem("Anodized Navy");
-	NEGEVSkin.AddItem("Man-o'-war");
-	NEGEVSkin.AddItem("Bratatat");
-	NEGEVSkin.AddItem("Desert-Strike");
-	NEGEVSkin.AddItem("Nuclear Waste");
-	NEGEVSkin.AddItem("Loudmouth");
-	NEGEVSkin.AddItem("Power Loader");
-	MachinegunsGroup.PlaceLabledControl("Negev", this, &NEGEVSkin);
-
-	M249Skin.SetFileId("m249_skin");
-	M249Skin.AddItem("System Lock");
-	M249Skin.AddItem("Shipping Forecast");
-	M249Skin.AddItem("Impact Drill");
-	M249Skin.AddItem("Nebula Crusader");
-	M249Skin.AddItem("Spectre");
-	MachinegunsGroup.PlaceLabledControl("M249", this, &M249Skin);
-
-#pragma endregion
-
-#pragma region Snipers
-	Snipergroup.SetPosition(16, 98);
-	Snipergroup.SetText("Snipers");
-	Snipergroup.SetSize(376, 125);
-	RegisterControl(&Snipergroup);
-
-	AWPSkin.SetFileId("awp_skin");
-	AWPSkin.AddItem("BOOM");
-	AWPSkin.AddItem("Dragon Lore");
-	AWPSkin.AddItem("Pink DDPAT");
-	AWPSkin.AddItem("Fever Dream");
-	AWPSkin.AddItem("Lightning Strike");
-	AWPSkin.AddItem("Corticera");
-	AWPSkin.AddItem("Redline");
-	AWPSkin.AddItem("Man-o'-war");
-	AWPSkin.AddItem("Graphite");
-	AWPSkin.AddItem("Electric Hive");
-	AWPSkin.AddItem("Pit Viper");
-	AWPSkin.AddItem("Asiimov");
-	AWPSkin.AddItem("Oni Taiji");
-	AWPSkin.AddItem("Medusa");
-	AWPSkin.AddItem("Sun in Leo");
-	AWPSkin.AddItem("Hyper Beast");
-	AWPSkin.AddItem("Elite Build");
-	Snipergroup.PlaceLabledControl("AWP", this, &AWPSkin);
-
-	SSG08Skin.SetFileId("sgg08_skin");
-	SSG08Skin.AddItem("Dragonfire");
-	SSG08Skin.AddItem("Blood in the Water");
-	SSG08Skin.AddItem("Ghost Crusader");
-	SSG08Skin.AddItem("Detour");
-	SSG08Skin.AddItem("Abyss");
-	SSG08Skin.AddItem("Big Iron");
-	Snipergroup.PlaceLabledControl("SGG 08", this, &SSG08Skin);
-
-	SCAR20Skin.SetFileId("scar20_skin");
-	SCAR20Skin.AddItem("Splash Jam");
-	SCAR20Skin.AddItem("Emerald");
-	SCAR20Skin.AddItem("Crimson Web");
-	SCAR20Skin.AddItem("Cardiac");
-	SCAR20Skin.AddItem("Bloodsport");
-	SCAR20Skin.AddItem("Cyrex");
-	SCAR20Skin.AddItem("Grotto");
-	Snipergroup.PlaceLabledControl("SCAR-20", this, &SCAR20Skin);
-
-	G3SG1Skin.SetFileId("g3sg1_skin");
-	G3SG1Skin.AddItem("Demeter");
-	G3SG1Skin.AddItem("Azure Zebra");
-	G3SG1Skin.AddItem("Green Apple");
-	G3SG1Skin.AddItem("Orange Kimono");
-	G3SG1Skin.AddItem("Neon Kimono");
-	G3SG1Skin.AddItem("Murky");
-	G3SG1Skin.AddItem("Chronos");
-	G3SG1Skin.AddItem("Flux");
-	G3SG1Skin.AddItem("The Executioner");
-	Snipergroup.PlaceLabledControl("G3SG1", this, &G3SG1Skin);
-#pragma endregion
-
-#pragma region Shotguns
-	Shotgungroup.SetPosition(408, 98);
-	Shotgungroup.SetText("Shotguns");
-	Shotgungroup.SetSize(360, 125);
-	RegisterControl(&Shotgungroup);
-
-	MAG7Skin.SetFileId("mag7_skin");
-	MAG7Skin.AddItem("Counter Terrace");
-	MAG7Skin.AddItem("Bulldozer");
-	MAG7Skin.AddItem("Heat");
-	Shotgungroup.PlaceLabledControl("Mag-7", this, &MAG7Skin);
-
-	XM1014Skin.SetFileId("xm1014_skin");
-	XM1014Skin.AddItem("Tranquality");
-	XM1014Skin.AddItem("Teclu Burner");
-	XM1014Skin.AddItem("Scumbria");
-	XM1014Skin.AddItem("Heaven Guard");
-	XM1014Skin.AddItem("Quicksilver");
-	Shotgungroup.PlaceLabledControl("XM1014", this, &XM1014Skin);
-
-	SAWEDOFFSkin.SetFileId("sawedoff_skin");
-	SAWEDOFFSkin.AddItem("Serenity");
-	SAWEDOFFSkin.AddItem("Orange DDPAT");
-	SAWEDOFFSkin.AddItem("Fade");
-	SAWEDOFFSkin.AddItem("The Kraken");
-	SAWEDOFFSkin.AddItem("Wasteland Princess");
-	SAWEDOFFSkin.AddItem("Highwayman");
-	Shotgungroup.PlaceLabledControl("Sawed-Off", this, &SAWEDOFFSkin);
-
-	NOVASkin.SetFileId("nova_skin");
-	NOVASkin.AddItem("Candy Apple");
-	NOVASkin.AddItem("Blaze Orange");
-	NOVASkin.AddItem("Modern Hunter");
-	NOVASkin.AddItem("Forest Leaves");
-	NOVASkin.AddItem("Bloomstick");
-	NOVASkin.AddItem("Sand Dune");
-	NOVASkin.AddItem("Polar Mesh");
-	NOVASkin.AddItem("Walnut");
-	NOVASkin.AddItem("Predator");
-	NOVASkin.AddItem("Tempest");
-	NOVASkin.AddItem("Graphite");
-	NOVASkin.AddItem("Ghost Camo");
-	NOVASkin.AddItem("Rising Skull");
-	NOVASkin.AddItem("Antique");
-	NOVASkin.AddItem("Green Apple");
-	NOVASkin.AddItem("Caged Steel");
-	NOVASkin.AddItem("Koi");
-	NOVASkin.AddItem("Moon in Libra");
-	NOVASkin.AddItem("Ranger");
-	NOVASkin.AddItem("HyperBeast");
-	Shotgungroup.PlaceLabledControl("Nova", this, &NOVASkin);
-#pragma endregion
-
-#pragma region Rifles
-	Riflegroup.SetPosition(16, 233);
-	Riflegroup.SetText("Rifles");
-	Riflegroup.SetSize(376, 200);
-	RegisterControl(&Riflegroup);
-
-	AK47Skin.SetFileId("ak47_skin");
-	AK47Skin.AddItem("First Class");
-	AK47Skin.AddItem("Red Laminate");
-	AK47Skin.AddItem("Case Hardened");
-	AK47Skin.AddItem("Black Laminate");
-	AK47Skin.AddItem("Fire Serpent");
-	AK47Skin.AddItem("Cartel");
-	AK47Skin.AddItem("Emerald Pinstripe");
-	AK47Skin.AddItem("Blue Laminate");
-	AK47Skin.AddItem("Redline");
-	AK47Skin.AddItem("Vulcan");
-	AK47Skin.AddItem("Jaguar");
-	AK47Skin.AddItem("Jet Set");
-	AK47Skin.AddItem("Wasteland Rebel");
-	AK47Skin.AddItem("Orbit Mk01");
-	AK47Skin.AddItem("Hydroponic");
-	AK47Skin.AddItem("Aquamarine Revenge");
-	AK47Skin.AddItem("Frontside Misty");
-	AK47Skin.AddItem("Point Disarray");
-	AK47Skin.AddItem("Fuel Injector");
-	AK47Skin.AddItem("Neon Revolution");
-	AK47Skin.AddItem("Bloodsport");
-	Riflegroup.PlaceLabledControl("AK-47", this, &AK47Skin);
-
-	M41SSkin.SetFileId("m4a1s_skin");
-	M41SSkin.AddItem("Dark Water");
-	M41SSkin.AddItem("Hyper Beast");
-	M41SSkin.AddItem("Decimator");
-	M41SSkin.AddItem("VariCamo");
-	M41SSkin.AddItem("Nitro");
-	M41SSkin.AddItem("Bright Water");
-	M41SSkin.AddItem("Atomic Alloy");
-	M41SSkin.AddItem("Blood Tiger");
-	M41SSkin.AddItem("Guardian");
-	M41SSkin.AddItem("Master Piece");
-	M41SSkin.AddItem("Knight");
-	M41SSkin.AddItem("Cyrex");
-	M41SSkin.AddItem("Basilisk");
-	M41SSkin.AddItem("Icarus Fell");
-	M41SSkin.AddItem("Hot Rod");
-	M41SSkin.AddItem("Golden Coi");
-	M41SSkin.AddItem("Chantico's Fire");
-	M41SSkin.AddItem("Mecha Industries");
-	M41SSkin.AddItem("Flashback");
-	Riflegroup.PlaceLabledControl("M4A1-S", this, &M41SSkin);
-
-	M4A4Skin.SetFileId("m4a4_skin");
-	M4A4Skin.AddItem("Bullet Rain");
-	M4A4Skin.AddItem("Zirka");
-	M4A4Skin.AddItem("Asiimov");
-	M4A4Skin.AddItem("Howl");
-	M4A4Skin.AddItem("X-Ray");
-	M4A4Skin.AddItem("Desert-Strike");
-	M4A4Skin.AddItem("Griffin");
-	M4A4Skin.AddItem("Dragon King");
-	M4A4Skin.AddItem("Poseidon");
-	M4A4Skin.AddItem("Daybreak");
-	M4A4Skin.AddItem("Evil Daimyo");
-	M4A4Skin.AddItem("Royal Paladin");
-	M4A4Skin.AddItem("The BattleStar");
-	M4A4Skin.AddItem("Desolate Space");
-	M4A4Skin.AddItem("Buzz Kill");
-	M4A4Skin.AddItem("Hellfire");
-	Riflegroup.PlaceLabledControl("M4A4", this, &M4A4Skin);
-
-	AUGSkin.SetFileId("aug_skin");
-	AUGSkin.AddItem("Bengal Tiger");
-	AUGSkin.AddItem("Hot Rod");
-	AUGSkin.AddItem("Chameleon");
-	AUGSkin.AddItem("Torque");
-	AUGSkin.AddItem("Radiation Hazard");
-	AUGSkin.AddItem("Asterion");
-	AUGSkin.AddItem("Daedalus");
-	AUGSkin.AddItem("Akihabara Accept");
-	AUGSkin.AddItem("Ricochet");
-	AUGSkin.AddItem("Fleet Flock");
-	AUGSkin.AddItem("Syd Mead");
-	Riflegroup.PlaceLabledControl("AUG", this, &AUGSkin);
-
-	FAMASSkin.SetFileId("famas_skin");
-	FAMASSkin.AddItem("Djinn");
-	FAMASSkin.AddItem("Afterimage");
-	FAMASSkin.AddItem("Doomkitty");
-	FAMASSkin.AddItem("Spitfire");
-	FAMASSkin.AddItem("Teardown");
-	FAMASSkin.AddItem("Hexane");
-	FAMASSkin.AddItem("Pulse");
-	FAMASSkin.AddItem("Sergeant");
-	FAMASSkin.AddItem("Styx");
-	FAMASSkin.AddItem("Neural Net");
-	FAMASSkin.AddItem("Survivor");
-	FAMASSkin.AddItem("Valence");
-	FAMASSkin.AddItem("Roll Cage");
-	FAMASSkin.AddItem("Mecha Industries");
-	Riflegroup.PlaceLabledControl("FAMAS", this, &FAMASSkin);
-
-	GALILSkin.SetFileId("galil_skin");
-	GALILSkin.AddItem("Orange DDPAT");
-	GALILSkin.AddItem("Eco");
-	GALILSkin.AddItem("Stone Cold");
-	GALILSkin.AddItem("Cerberus");
-	GALILSkin.AddItem("Aqua Terrace");
-	GALILSkin.AddItem("Chatterbox");
-	GALILSkin.AddItem("Firefight");
-	GALILSkin.AddItem("Rocket Pop");
-	GALILSkin.AddItem("Sugar Rush");
-	Riflegroup.PlaceLabledControl("GALIL", this, &GALILSkin);
-
-	SG553Skin.SetFileId("sg552_skin");
-	SG553Skin.AddItem("Bulldozer");
-	SG553Skin.AddItem("Ultraviolet");
-	SG553Skin.AddItem("Damascus Steel");
-	SG553Skin.AddItem("Fallout Warning");
-	SG553Skin.AddItem("Damascus Steel");
-	SG553Skin.AddItem("Pulse");
-	SG553Skin.AddItem("Army Sheen");
-	SG553Skin.AddItem("Traveler");
-	SG553Skin.AddItem("Fallout Warning");
-	SG553Skin.AddItem("Cyrex");
-	SG553Skin.AddItem("Tiger Moth");
-	SG553Skin.AddItem("Atlas");
-	Riflegroup.PlaceLabledControl("SG553", this, &SG553Skin);
-#pragma endregion
-
-#pragma region MPs
-	MPGroup.SetPosition(16, 443);
-	MPGroup.SetText("MPs");
-	MPGroup.SetSize(376, 173);
-	RegisterControl(&MPGroup);
-
-	MAC10Skin.SetFileId("mac10_skin");
-	MAC10Skin.AddItem("Fade");
-	MAC10Skin.AddItem("Neon Rider");
-	MAC10Skin.AddItem("Ultraviolet");
-	MAC10Skin.AddItem("Palm");
-	MAC10Skin.AddItem("Graven");
-	MAC10Skin.AddItem("Tatter");
-	MAC10Skin.AddItem("Amber Fade");
-	MAC10Skin.AddItem("Heat");
-	MAC10Skin.AddItem("Curse");
-	MAC10Skin.AddItem("Indigo");
-	MAC10Skin.AddItem("Commuter");
-	MAC10Skin.AddItem("Nuclear Garden");
-	MAC10Skin.AddItem("Malachite");
-	MAC10Skin.AddItem("Rangeen");
-	MAC10Skin.AddItem("Lapis Gator");
-	MPGroup.PlaceLabledControl("MAC-10", this, &MAC10Skin);
-
-	P90Skin.SetFileId("p90_skin");
-	P90Skin.AddItem("Cold Blooded");
-	P90Skin.AddItem("Death by Kitty");
-	P90Skin.AddItem("Shapewood");
-	P90Skin.AddItem("Emerald Dragon");
-	P90Skin.AddItem("Asiimov");
-	P90Skin.AddItem("Virus");
-	MPGroup.PlaceLabledControl("P90", this, &P90Skin);
-
-	UMP45Skin.SetFileId("ump45_skin");
-	UMP45Skin.AddItem("Blaze");
-	UMP45Skin.AddItem("Primal Saber");
-	UMP45Skin.AddItem("Minotaurs Labyrinth");
-	UMP45Skin.AddItem("Grand Prix");
-	MPGroup.PlaceLabledControl("UMP-45", this, &UMP45Skin);
-
-	BIZONSkin.SetFileId("bizon_skin");
-	BIZONSkin.AddItem("Blue Streak");
-	BIZONSkin.AddItem("Antique");
-	BIZONSkin.AddItem("Judgement of Anubis");
-	BIZONSkin.AddItem("Osiris");
-	BIZONSkin.AddItem("Fuel Rod");
-	MPGroup.PlaceLabledControl("PP-Bizon", this, &BIZONSkin);
-
-	MP7Skin.SetFileId("mp7_skin");
-	MP7Skin.AddItem("Whiteout");
-	MP7Skin.AddItem("Nemesis");
-	MP7Skin.AddItem("Impire");
-	MPGroup.PlaceLabledControl("MP7", this, &MP7Skin);
-
-	MP9Skin.SetFileId("mp9_skin");
-	MP9Skin.AddItem("Ruby Poison Dart");
-	MP9Skin.AddItem("Hot Rod");
-	MPGroup.PlaceLabledControl("MP9", this, &MP9Skin);
-
-#pragma endregion
-
-#pragma region Pistols
-	PistolGroup.SetPosition(408, 233);
-	PistolGroup.SetText("Pistols");
-	PistolGroup.SetSize(360, 250);
-	RegisterControl(&PistolGroup);
-
-	GLOCKSkin.SetFileId("glock_skin");
-	GLOCKSkin.AddItem("Wasteland Rebel");
-	GLOCKSkin.AddItem("Twillight Galaxy");
-	GLOCKSkin.AddItem("Fade");
-	GLOCKSkin.AddItem("Dragon Tattoo");
-	GLOCKSkin.AddItem("Water Elemental");
-	GLOCKSkin.AddItem("Royal Legion");
-	GLOCKSkin.AddItem("Grinder");
-	GLOCKSkin.AddItem("Reactor");
-	GLOCKSkin.AddItem("Weasel");
-	PistolGroup.PlaceLabledControl("Glock", this, &GLOCKSkin);
-
-	USPSSkin.SetFileId("usps_skin");
-	USPSSkin.AddItem("Dark Water");;
-	USPSSkin.AddItem("Overgrowth");
-	USPSSkin.AddItem("Caiman");
-	USPSSkin.AddItem("Blood Tiger");
-	USPSSkin.AddItem("Serum");
-	USPSSkin.AddItem("Neo-Noir");
-	USPSSkin.AddItem("Stainless");
-	USPSSkin.AddItem("Guardian");
-	USPSSkin.AddItem("Orion");
-	USPSSkin.AddItem("Road Rash");
-	USPSSkin.AddItem("Royal Blue");
-	USPSSkin.AddItem("Business Class");
-	USPSSkin.AddItem("Para Green");
-	USPSSkin.AddItem("Torque");
-	USPSSkin.AddItem("Kill Confirmed");
-	USPSSkin.AddItem("Lead Conduit");
-	USPSSkin.AddItem("Cyrex");
-	PistolGroup.PlaceLabledControl("USP-S", this, &USPSSkin);
-
-	DEAGLESkin.SetFileId("deagle_skin");
-	DEAGLESkin.AddItem("Blaze");
-	DEAGLESkin.AddItem("Oxide Blaze");
-	DEAGLESkin.AddItem("Kumicho Dragon");
-	DEAGLESkin.AddItem("Sunset Storm");
-	PistolGroup.PlaceLabledControl("Deagle", this, &DEAGLESkin);
-
-	DUALSSkin.SetFileId("duals_skin");
-	DUALSSkin.AddItem("Dualing Dragons");
-	DUALSSkin.AddItem("Anodized Navy");
-	DUALSSkin.AddItem("Duelist");
-	DUALSSkin.AddItem("Hemoglobin");
-	DUALSSkin.AddItem("Marina");
-	DUALSSkin.AddItem("Urban Shock");
-	PistolGroup.PlaceLabledControl("Duals", this, &DUALSSkin);
-
-	RevolverSkin.SetFileId("revolver_skin");
-	RevolverSkin.AddItem("Fade");
-	RevolverSkin.AddItem("Crimson Web");
-	RevolverSkin.AddItem("Amber Fade");
-	RevolverSkin.AddItem("Reboot");
-	PistolGroup.PlaceLabledControl("Revolver", this, &RevolverSkin);
-
-	FIVESEVENSkin.SetFileId("fiveseven_skin");
-	FIVESEVENSkin.AddItem("Case Hardened");
-	FIVESEVENSkin.AddItem("Fowl Play");
-	FIVESEVENSkin.AddItem("Retrobution");
-	FIVESEVENSkin.AddItem("Triumvirate");
-	FIVESEVENSkin.AddItem("Neon Kimono");
-	FIVESEVENSkin.AddItem("Monkey Business");
-	FIVESEVENSkin.AddItem("Copper Galaxy");
-	FIVESEVENSkin.AddItem("Hyper Beast");
-	PistolGroup.PlaceLabledControl("Five-Seven", this, &FIVESEVENSkin);
-
-	TECNINESkin.SetFileId("tec9_skin");
-	TECNINESkin.AddItem("Terrace");
-	TECNINESkin.AddItem("Isaac");
-	TECNINESkin.AddItem("Red Quartz");
-	TECNINESkin.AddItem("Avalanche");
-	TECNINESkin.AddItem("Toxic");
-	TECNINESkin.AddItem("Fuel Injector");
-	TECNINESkin.AddItem("Re-Entry");
-	TECNINESkin.AddItem("Bamboo Forest");
-	TECNINESkin.AddItem("Nuclear Threat");
-	PistolGroup.PlaceLabledControl("Tec-9", this, &TECNINESkin);
-
-	P2000Skin.SetFileId("p2000_skin");
-	P2000Skin.AddItem("Handgun");
-	P2000Skin.AddItem("Corticera");
-	P2000Skin.AddItem("Ocean Foam");
-	P2000Skin.AddItem("Fire Elemental");
-	P2000Skin.AddItem("Imperial Dragon");
-	P2000Skin.AddItem("Ocean Foam");
-	P2000Skin.AddItem("Amber Fade");
-	PistolGroup.PlaceLabledControl("P2000", this, &P2000Skin);
-
-	P250Skin.SetFileId("p250_skin");
-	P250Skin.AddItem("Whiteout");
-	P250Skin.AddItem("Nuclear Threat");
-	P250Skin.AddItem("Splash");
-	P250Skin.AddItem("Mehndi");
-	P250Skin.AddItem("Asiimov");
-	P250Skin.AddItem("Undertow");
-	P250Skin.AddItem("Franklin");
-	P250Skin.AddItem("Supernova");
-	P250Skin.AddItem("Cartel");
-	PistolGroup.PlaceLabledControl("P250", this, &P250Skin);
-
-#pragma endregion
-
-#pragma region Skinsettings
-	SkinsettingsGroup.SetPosition(408, 496);
-	SkinsettingsGroup.SetText("Customisation");
-	SkinsettingsGroup.SetSize(360, 118);
-	RegisterControl(&SkinsettingsGroup);
-
-	StatTrakEnable.SetFileId("skin_stattrack");
-	SkinsettingsGroup.PlaceLabledControl("Stat Trak", this, &StatTrakEnable);
-
-	StatTrackAmount.SetFileId("skin_stamount");
-	SkinsettingsGroup.PlaceLabledControl("Value", this, &StatTrackAmount);
-
-	KnifeName.SetFileId("knife_name");
-	SkinsettingsGroup.PlaceLabledControl("Knife Name", this, &KnifeName);
-
-	SkinName.SetFileId("skin_name");
-	SkinsettingsGroup.PlaceLabledControl("Skin Name", this, &SkinName);
-
-	SkinApply.SetText("Apply Changes");
-	SkinApply.SetCallback(KnifeApplyCallbk);
-	SkinApply.SetPosition(408, 618);
-	SkinApply.SetSize(360, 106);
-	RegisterControl(&SkinApply);
-
-#pragma endregion
-
-#pragma endregion other random options
-
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr("Priority"), this, &PlayerPriority);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr("Whitelist"), this, &PlayerFriendly);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr("Prioritize body"), this, &PlayerPreferBody);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr("Force pitch"), this, &PlayerForcePitch);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr(""), this, &PlayerForcePitch_Pitch);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr("Force yaw"), this, &PlayerForceYaw);
+	PlayerSettingsGroup.PlaceLabledControl(0, XorStr(""), this, &PlayerForceYaw_Yaw);
 }
 
+void CSkinsTab::Setup()
+{
+	SetTitle(XorStr("e"));
+
+	SkinChangerEnabled.SetFileId(XorStr("s_enabled"));
+	SkinChangerEnabled.SetPosition(24, 16);
+	SkinChangerEnabled.SetSize(10, 100);
+	RegisterControl(&SkinChangerEnabled);
+
+	EnabledLabel.SetText(XorStr("Enable"));
+	EnabledLabel.SetPosition(40, 16);
+	RegisterControl(&EnabledLabel);
+	 
+	OverrideModelGroup.SetText(XorStr("Knife Changer"));
+	OverrideModelGroup.SetPosition(24, 40);
+	OverrideModelGroup.SetSize(293, 325);
+	RegisterControl(&OverrideModelGroup);
+
+	OverrideKnife.SetFileId(XorStr("s_overrideknife"));
+	OverrideModelGroup.PlaceLabledControl(0, "Override Knife", this, &OverrideKnife);
+
+	KnifeSelection.SetFileId(XorStr("s_knife"));
+	KnifeSelection.AddItem(XorStr("Default"));
+	KnifeSelection.AddItem(XorStr("Bayonet"));
+	KnifeSelection.AddItem(XorStr("M9 Bayonet"));
+	KnifeSelection.AddItem(XorStr("Butterfly"));
+	KnifeSelection.AddItem(XorStr("Flip"));
+	KnifeSelection.AddItem(XorStr("Gut"));
+	KnifeSelection.AddItem(XorStr("Karambit"));
+	KnifeSelection.AddItem(XorStr("Huntsman"));
+	KnifeSelection.AddItem(XorStr("Falchion"));
+	KnifeSelection.AddItem(XorStr("Shadow Daggers"));
+	KnifeSelection.AddItem(XorStr("Bowie"));
+	OverrideModelGroup.PlaceLabledControl(0, XorStr(""), this, &KnifeSelection);
+
+	KnifeSkin.SetFileId(XorStr("s_knifeskin"));
+	KnifeSkin.AddItem(XorStr("Vanilla"), 0);
+	KnifeSkin.AddItem(XorStr("Forest DDPAT (5)"), 5);
+	KnifeSkin.AddItem(XorStr("Doppler | Phase 1 (418)"), 418);
+	KnifeSkin.AddItem(XorStr("Doppler | Phase 2 (419)"), 419);
+	KnifeSkin.AddItem(XorStr("Doppler | Phase 3 (420)"), 420);
+	KnifeSkin.AddItem(XorStr("Doppler | Phase 4 (421)"), 421);
+	KnifeSkin.AddItem(XorStr("Doppler | Ruby (415)"), 415);
+	KnifeSkin.AddItem(XorStr("Doppler | Sapphire (416)"), 416);
+	KnifeSkin.AddItem(XorStr("Doppler | Blackpearl (417)"), 417);
+	KnifeSkin.AddItem(XorStr("Crimson Web (12)"), 12);
+	KnifeSkin.AddItem(XorStr("Slaughter (59)"), 59);
+	KnifeSkin.AddItem(XorStr("Fade (38)"), 38);
+	KnifeSkin.AddItem(XorStr("Night (40)"), 40);
+	KnifeSkin.AddItem(XorStr("Blue Steel (42)"), 42);
+	KnifeSkin.AddItem(XorStr("Stained (43)"), 43);
+	KnifeSkin.AddItem(XorStr("Case Hardened (44)"), 44);
+	KnifeSkin.AddItem(XorStr("Safari Mesh (72)"), 72);
+	KnifeSkin.AddItem(XorStr("Boreal Forest (77)"), 77);
+	KnifeSkin.AddItem(XorStr("Ultraviolet (98)"), 98);
+	KnifeSkin.AddItem(XorStr("Urban Masked (143)"), 143);
+	KnifeSkin.AddItem(XorStr("Damascus Steel (410)"), 410);
+	KnifeSkin.AddItem(XorStr("Scorched (175)"), 175);
+	KnifeSkin.AddItem(XorStr("Tiger Tooth (409)"), 409);
+	KnifeSkin.AddItem(XorStr("Marble Fade (413)"), 413);
+	KnifeSkin.AddItem(XorStr("Rust Coat (323)"), 323);
+	KnifeSkin.AddItem(XorStr("Bright Water (578)"), 578);
+	KnifeSkin.AddItem(XorStr("Lore | Bayonet (558)"), 558);
+	KnifeSkin.AddItem(XorStr("Lore | Flip (559)"), 559);
+	KnifeSkin.AddItem(XorStr("Lore | Gut (560)"), 560);
+	KnifeSkin.AddItem(XorStr("Lore | Karambit (561)"), 561);
+	KnifeSkin.AddItem(XorStr("Lore | M9 (562)"), 562);
+	KnifeSkin.AddItem(XorStr("Autotronic | Bayonet (573)"), 573);
+	KnifeSkin.AddItem(XorStr("Autotronic | Flip (574)"), 574);
+	KnifeSkin.AddItem(XorStr("Autotronic | Gut (575)"), 575);
+	KnifeSkin.AddItem(XorStr("Autotronic | Karambit (576)"), 576);
+	KnifeSkin.AddItem(XorStr("Autotronic | M9 (577)"), 577);
+	KnifeSkin.AddItem(XorStr("Gamme Doppler | Phase 1 (569)"), 569);
+	KnifeSkin.AddItem(XorStr("Gamme Doppler | Phase 2 (570)"), 570);
+	KnifeSkin.AddItem(XorStr("Gamme Doppler | Phase 3 (571)"), 571);
+	KnifeSkin.AddItem(XorStr("Gamme Doppler | Phase 4 (572)"), 572);
+	KnifeSkin.AddItem(XorStr("Gamme Doppler | Emerald (568)"), 568);
+	KnifeSkin.AddItem(XorStr("Black Laminate | Bayonet (563)"), 563);
+	KnifeSkin.AddItem(XorStr("Black Laminate | Flip (564)"), 564);
+	KnifeSkin.AddItem(XorStr("Black Laminate | Gut (565)"), 565);
+	KnifeSkin.AddItem(XorStr("Black Laminate | Karambit (566)"), 566);
+	KnifeSkin.AddItem(XorStr("Black Laminate | M9 (567)"), 567);
+	KnifeSkin.AddItem(XorStr("Freehand | 1 (581)"), 581);
+	KnifeSkin.AddItem(XorStr("Freehand | 2 (582)"), 582);
+	KnifeSkin.AddItem(XorStr("Filler"), 99999);
+	KnifeSkin.SetHeightInItems(10);
+	OverrideModelGroup.PlaceLabledControl(0, XorStr(""), this, &KnifeSkin);
+
+	KnifeWear.SetFileId(XorStr("s_knifewear"));
+	KnifeWear.SetBoundaries(0, 1);
+	KnifeWear.SetValue(0.01);
+	KnifeWear.SetFormat(SliderFormat::FORMAT_DECDIG2);
+	OverrideModelGroup.PlaceLabledControl(0, XorStr("Fallback wear"), this, &KnifeWear);
+
+	KnifeEntityQuality.SetFileId(XorStr("s_knifequality"));
+	KnifeEntityQuality.AddItem(XorStr("Normal"));
+	KnifeEntityQuality.AddItem(XorStr("Genuine"));
+	KnifeEntityQuality.AddItem(XorStr("Vintage"));
+	KnifeEntityQuality.AddItem(XorStr("Unusual"));
+	KnifeEntityQuality.AddItem(XorStr("Community"));
+	KnifeEntityQuality.AddItem(XorStr("Developer"));
+	KnifeEntityQuality.AddItem(XorStr("Self-Made"));
+	KnifeEntityQuality.AddItem(XorStr("Customized"));
+	KnifeEntityQuality.AddItem(XorStr("Strange"));
+	KnifeEntityQuality.AddItem(XorStr("Completed"));
+	KnifeEntityQuality.AddItem(XorStr("Tournament"));
+	OverrideModelGroup.PlaceLabledControl(0, XorStr("Entity quality"), this, &KnifeEntityQuality);
+
+	KnifeFullUpdate.SetText(XorStr("Update"));
+	KnifeFullUpdate.SetCallback(&KnifeApplyCallbk);
+	OverrideModelGroup.PlaceLabledControl(0, XorStr(""), this, &KnifeFullUpdate);
+
+}
 
 void Menu::SetupMenu()
 {
@@ -1492,21 +1426,10 @@ void Menu::SetupMenu()
 	GUI.BindWindow(VK_INSERT, &Window);
 }
 
-void Menu::DoUIFrame()
-{
-		if (Window.VisualsTab.FiltersAll.GetState())
-	{
-		Window.VisualsTab.FiltersC4.SetState(true);
-		Window.VisualsTab.FiltersChickens.SetState(true);
-		Window.VisualsTab.FiltersPlayers.SetState(true);
-		Window.VisualsTab.FiltersWeapons.SetState(true);
-		Window.VisualsTab.FiltersEnemiesOnly.SetState(true);
-	}
-
+void Menu::DoFrame()
+{	
 	GUI.Update();
 	GUI.Draw();
 
-	
+	plist.paint();
 }
-
-

@@ -1,22 +1,16 @@
-/*
-Syn's AyyWare Framework 2015
-*/
-
 #include "Offsets.h"
-#include "UTIL Functions.h"
-
-#define strenc( s ) ( s )
+#include "Game.h""
 
 void Offsets::Initialise()
 {
 	// Modules
-	Modules::Client = Utilities::Memory::WaitOnModuleHandle("client.dll");
-	Modules::Engine = Utilities::Memory::WaitOnModuleHandle("engine.dll");
-	Modules::VGUI2 = Utilities::Memory::WaitOnModuleHandle("vgui2.dll");
-	Modules::VGUISurface = Utilities::Memory::WaitOnModuleHandle("vguimatsurface.dll");
-	Modules::Material = Utilities::Memory::WaitOnModuleHandle("materialsystem.dll");
-	Modules::VPhysics = Utilities::Memory::WaitOnModuleHandle("vphysics.dll");
-	Modules::Stdlib = Utilities::Memory::WaitOnModuleHandle("vstdlib.dll");
+	Modules::Client = game::search.wait_on_mod_handle("client.dll");
+	Modules::Engine = game::search.wait_on_mod_handle("engine.dll");
+	Modules::VGUI2 = game::search.wait_on_mod_handle("vgui2.dll");
+	Modules::VGUISurface = game::search.wait_on_mod_handle("vguimatsurface.dll");
+	Modules::Material = game::search.wait_on_mod_handle("materialsystem.dll");
+	Modules::VPhysics = game::search.wait_on_mod_handle("vphysics.dll");
+	Modules::Stdlib = game::search.wait_on_mod_handle("vstdlib.dll");
 
 	//------------------------------------------------------------------------
 	// VTables
@@ -79,22 +73,22 @@ void Offsets::Initialise()
 
 #pragma endregion Contains the VTable Indexs
 
+	// An update changed the VTable offset for GetSpread.
+	// Just incase ;)
+	DWORD VMT_SpreadAddress = (DWORD)game::search.pattern("client.dll", (PBYTE)"\x8B\x80\x00\x00\x00\x00\xFF\xD0\x51\xD9\x1C\x24\x0F\xB6\xC3\x8B\x5C\x24\x30", "xx????xxxxxxxxxxxxx");
+	if (VMT_SpreadAddress)
+	{
+		VMT::Weapon_GetSpread = *(DWORD*)(VMT_SpreadAddress + 2);
+		VMT::Weapon_GetSpread = (VMT::Weapon_GetSpread / 4);
+	}
+
 	// I cbf trying to get the KeyValues part of the SDK working solo, so we'll just
 	// Do some dirty shit
-	Functions::KeyValues_KeyValues = Utilities::Memory::FindPattern("client.dll", (PBYTE)"\x68\x00\x00\x00\x00\x8B\xC8\xE8\x00\x00\x00\x00\x89\x45\xFC\xEB\x07\xC7\x45\x00\x00\x00\x00\x00\x8B\x03\x56", "x????xxx????xxxxxxx?????xxx");
+	Functions::KeyValues_KeyValues = game::search.pattern("client.dll", (PBYTE)"\x68\x00\x00\x00\x00\x8B\xC8\xE8\x00\x00\x00\x00\x89\x45\xFC\xEB\x07\xC7\x45\x00\x00\x00\x00\x00\x8B\x03\x56", "x????xxx????xxxxxxx?????xxx");
 	Functions::KeyValues_KeyValues += 7;
 	Functions::KeyValues_KeyValues = Functions::KeyValues_KeyValues + *reinterpret_cast< PDWORD_PTR >(Functions::KeyValues_KeyValues + 1) + 5;
 
-	Functions::KeyValues_LoadFromBuffer = Utilities::Memory::FindPattern("client.dll", (PBYTE)"\xE8\x00\x00\x00\x00\x80\x7D\xF8\x00\x00\x00\x85\xDB", "x????xxxx??xx");
-	Functions::KeyValues_LoadFromBuffer = Functions::KeyValues_LoadFromBuffer + *reinterpret_cast< PDWORD_PTR >(Functions::KeyValues_LoadFromBuffer + 1) + 5;
-
-	Functions::dwCalcPlayerView =  Utilities::Memory::FindPattern("client.dll", (PBYTE)"\x84\xC0\x75\x08\x57\x8B\xCE\xE8\x00\x00\x00\x00\x8B\x06", "xxxxxxxx????xx");
-
-	Functions::dwGetPlayerCompRank = GameUtils::FindPattern1(strenc("client.dll"), strenc("55 8B EC 8B 0D ? ? ? ? 68 ? ? ? ? "));
-
-	Functions::dwIsReady = GameUtils::FindPattern1(strenc("client.dll"), strenc("55 8B EC 51 56 8B 35 ? ? ? ? 80 7E 58 00"));
-
-	Utilities::Log("Offsets/Indexes Up to Date");
+	Functions::dwCalcPlayerView =  game::search.pattern("client.dll", (PBYTE)"\x84\xC0\x75\x08\x57\x8B\xCE\xE8\x00\x00\x00\x00\x8B\x06", "xxxxxxxx????xx");
 }
 
 namespace Offsets
@@ -128,7 +122,6 @@ namespace Offsets
 		DWORD Engine_IsConnected;
 		DWORD Engine_IsInGame;
 		DWORD Engine_WorldToScreenMatrix;
-		DWORD Engine_GetNetChannelInfo;
 		DWORD Engine_ClientCmd_Unrestricted;
 
 		// Panels
@@ -185,8 +178,6 @@ namespace Offsets
 		DWORD KeyValues_KeyValues;
 		DWORD KeyValues_LoadFromBuffer;
 		DWORD dwCalcPlayerView;
-		DWORD dwGetPlayerCompRank;
-		DWORD dwIsReady;
 	};
 
 };

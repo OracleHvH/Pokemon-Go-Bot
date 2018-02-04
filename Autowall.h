@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "Hacks.h"
-
 struct FireBulletData
 {
 	FireBulletData(const Vector &eye_pos)
@@ -24,3 +22,4 @@ struct FireBulletData
 };
 
 bool CanHit(const Vector &point, float *damage_given);
+bool trace_autowallable(float& dmg);

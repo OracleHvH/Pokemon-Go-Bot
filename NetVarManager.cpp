@@ -4,7 +4,6 @@
 #include <utility>
 #include <unordered_map>
 #include "SDK.h"
-//#include "XorStr.h"
 
 using namespace std;
 
@@ -73,7 +72,7 @@ NetvarManager::~NetvarManager()
 void NetvarManager::CreateDatabase()
 {
 	m_pDatabase = make_unique<NetvarDatabase>();
-	auto pClient = Interfaces::Client;
+	auto pClient = m_pClient;
 
 	if (pClient) {
 		for (auto pClass = pClient->GetAllClasses();

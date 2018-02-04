@@ -1,6 +1,4 @@
-/*
-Syn's AyyWare Framework 2015
-*/
+
 
 #pragma once
 #define _WINSOCKAPI_

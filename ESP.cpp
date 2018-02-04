@@ -1,699 +1,405 @@
-/*
-Syn's AyyWare Framework 2015
-*/
 
 #include "ESP.h"
 #include "Interfaces.h"
-#include "RenderManager.h"
-#include "Glowmanager.h"
-DWORD GlowManager = *(DWORD*)(Utilities::Memory::FindPatternV2("client.dll", "0F 11 05 ?? ?? ?? ?? 83 C8 01 C7 05 ?? ?? ?? ?? 00 00 00 00") + 3);
-IClientEntity *BombCarrier;
-void CEsp::Init()
-{
-	BombCarrier = nullptr;
-}
+#include "DrawManager.h"
+#include <iostream>
+
+#define minimum(a,b)            (((a) < (b)) ? (a) : (b))
 #define ccsplayer 35
-// Yeah dude we're defo gunna do some sick moves for the esp yeah
-void CEsp::Move(CUserCmd *pCmd,bool &bSendPacket) 
-{
 
-}
+CEsp esp;
+//CVisuals visuals;
 
-// Main ESP Drawing loop
-void CEsp::Draw()
-{
-	IClientEntity *pLocal = hackManager.pLocal();
+float flPlayerAlpha[65];
 
-	for (int i = 0; i < Interfaces::EntList->GetHighestEntityIndex(); i++)
-	{
-			IClientEntity *pEntity = Interfaces::EntList->GetClientEntity(i);
-			player_info_t pinfo;
+void CEsp::paint() {
+	auto m_local = game::localdata.localplayer();
 
-			if (pEntity &&  pEntity != pLocal && !pEntity->IsDormant())
-			{
-				if (Menu::Window.VisualsTab.OtherRadar.GetState())
-				{
-					DWORD m_bSpotted = NetVar.GetNetVar(0x839EB159);
-					*(char*)((DWORD)(pEntity)+m_bSpotted) = 1;
-				}
+	if (m_local) {
+		for (int i = 0; i < m_pEntityList->GetHighestEntityIndex(); i++) {
+			auto m_entity = static_cast<IClientEntity*>(m_pEntityList->GetClientEntity(i));
+			if (!m_entity) continue;
 
-				if (Menu::Window.VisualsTab.FiltersPlayers.GetState() && Interfaces::Engine->GetPlayerInfo(i, &pinfo) && pEntity->IsAlive())
-				{
-					DrawPlayer(pEntity, pinfo);
-				}
+			if (m_entity->GetClientClass()->m_ClassID == ccsplayer) {
+				if (m_entity->IsDormant() && flPlayerAlpha[i] > 0) flPlayerAlpha[i] -= 5;
+				else if (!(m_entity->IsDormant()) && flPlayerAlpha[i] < 255) flPlayerAlpha[i] += 5;
+				float alpha = flPlayerAlpha[i];
+				game::math.clamp(alpha, 0, 255);
 
-				ClientClass* cClass = (ClientClass*)pEntity->GetClientClass();
+				if (m_entity->IsAlive()) {
 
-				if (Menu::Window.VisualsTab.FiltersWeapons.GetState() && cClass->m_ClassID != (int)CSGOClassID::CBaseWeaponWorldModel && ((strstr(cClass->m_pNetworkName, "Weapon") || cClass->m_ClassID == (int)CSGOClassID::CDEagle || cClass->m_ClassID == (int)CSGOClassID::CAK47)))
-				{
-					DrawDrop(pEntity, cClass);
-				}
+					Color plc = Color(get_player_colors(m_entity).r(), get_player_colors(m_entity).g(), get_player_colors(m_entity).b(), alpha);
 
-				if (Menu::Window.VisualsTab.FiltersC4.GetState())
-				{
-					if (cClass->m_ClassID == (int)CSGOClassID::CPlantedC4)
-						DrawBombPlanted(pEntity, cClass);
+					Box box; if (!get_box(m_entity, box, visualconfig.player.iEspMode)) {
+						player.direction_arrow( m_entity->GetOrigin( ) );
+						continue;
+					}
 
-					if (cClass->m_ClassID == (int)CSGOClassID::CC4)
-						DrawBomb(pEntity, cClass);
-				}
+					if (!visualconfig.player.bTeammates && m_entity->GetTeamNum() == m_local->GetTeamNum() || m_entity == m_local) continue;
 
-				if (Menu::Window.VisualsTab.FiltersChickens.GetState())
-				{
-					if (cClass->m_ClassID == (int)CSGOClassID::CChicken)
-						DrawChicken(pEntity, cClass);
+					if (visualconfig.player.iActivationType == 1 && !game::functions.visible(m_local, m_entity, 0)) continue;
+
+					player.paint_player(m_entity, box, plc);
 				}
 			}
 		}
 
-
-
-}
-#include "game.h"
-#define M_PI 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989380952572010654858632788659361533818279682303019520353018529689957736225994138912497217752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711390098488240128583616035637076601047101819429555961989467678374494482553797747268471040475346462080466842590694912933136770289891521047521620569660240580
-float DirectionAlpha = 1;
-
-void CEsp::direction_arrow(const Vector& origin) {
-	if (Menu::Window.VisualsTab.DirectionArrow.GetState()) {
-		float flRadius = 360.0f;
-		int iScreenWidth, iScreenHeight;
-		float flRotation = game::globals.UserCmd->viewangles.y;
-		Interfaces::Engine->GetScreenSize(iScreenWidth, iScreenHeight);
-
-		Vector vRealAngles;
-		Interfaces::Engine->GetViewAngles(vRealAngles);
-
-		Vector vForward, vRight, vUp(0.0f, 0.0f, 1.0f);
-
-		AngleVectors(vRealAngles, &vForward, NULL, NULL);
-
-		vForward.z = 0.0f;
-		VectorNormalize(vForward);
-		CrossProduct(vUp, vForward, vRight);
-
-		float flFront = DotProduct(origin, vForward);
-		float flSide = DotProduct(origin, vRight);
-		float flXPosition = flRadius * -flSide;
-		float flYPosition = flRadius * -flFront;
-
-		flRotation = atan2(flXPosition, flYPosition) + M_PI;
-		flRotation *= 180.0f / M_PI;
-
-		float flYawRadians = -(flRotation) * M_PI / 180.0f;
-		float flCosYaw = cos(flYawRadians);
-		float flSinYaw = sin(flYawRadians);
-
-		flXPosition = (int)((iScreenWidth / 2.0f) + (flRadius * flSinYaw));
-		flYPosition = (int)((iScreenHeight / 2.0f) - (flRadius * flCosYaw));
-
-		Render::DrawRect(flXPosition, flYPosition, 10, 10, Color(125, 255, 125));
+		if ( m_local->IsAlive() && visualconfig.bAntiaimLines ) antiaim_lines( );
 	}
 }
 
-//  Yeah m8
-void CEsp::DrawPlayer(IClientEntity* pEntity, player_info_t pinfo)
-{
-	ESPBox Box;
-	Color Color;
+void CEsp::antiaim_lines( ) {
+	auto m_local = game::localdata.localplayer( );
 
-	// Show own team false? well gtfo teammate lol
-	if (Menu::Window.VisualsTab.FiltersEnemiesOnly.GetState() && (pEntity->GetTeamNum() == hackManager.pLocal()->GetTeamNum()))
-		return;
-	for (int i = 0; i < Interfaces::EntList->GetHighestEntityIndex(); i++) 
-	{
-		if (pEntity->IsAlive()) {
-	
-			int EntityNum = pEntity->GetTeamNum();
-			int LocalPlayerTeam = hackManager.pLocal()->GetTeamNum();
-			if (!GetBox(pEntity, Box) && EntityNum != LocalPlayerTeam) {
-				direction_arrow(pEntity->GetOrigin());
-			}
+	static float line_length = 80.f;
 
-		}
-	}
-	if (GetBox(pEntity, Box))
-	{
-		Color = GetPlayerColor(pEntity);
+	Vector lby, fake, real;
+	Vector start, end, forward, start_2d, end_2d;
 
-		if (Menu::Window.VisualsTab.OptionsBox.GetIndex())
-			DrawBox(Box, Color);
+	lby = Vector( 0.f, m_local->GetLowerBodyYaw( ), 0.f );
+	fake = Vector( 0.f, game::globals.aa_line_data.fake_angle, 0.f );
+	real = Vector( 0.f, game::globals.aa_line_data.real_angle, 0.f );
 
-		if (Menu::Window.VisualsTab.OptionsName.GetState())
-			DrawName(pinfo, Box);
+	start = m_local->GetOrigin( );
+	game::math.angle_vectors( lby, forward );
+	forward *= line_length;
+	end = start + forward;
 
-		if (Menu::Window.VisualsTab.OptionsHealth.GetState())
-			DrawHealth(Box, pEntity);
-
-		if (Menu::Window.VisualsTab.OptionsInfo.GetState() || Menu::Window.VisualsTab.OptionsWeapon.GetState())
-			DrawInfo(pEntity, Box);
-
-		if (Menu::Window.VisualsTab.OptionsMoney.GetState())
-			DrawMoney(pEntity, Box);
-
-		if (Menu::Window.VisualsTab.OptionsAimSpot.GetState())
-			DrawCross(pEntity);
-
-		if (Menu::Window.VisualsTab.OptionsArmor.GetState())
-			Armor(Box, pEntity);
-
-		if (Menu::Window.VisualsTab.OptionsSkeleton.GetState())
-			DrawSkeleton(pEntity);
-
-		if (Menu::Window.VisualsTab.OptionsGlow.GetIndex())
-			DrawGlow();
-
-		if (Menu::Window.VisualsTab.OptionsBarrels.GetState())
-			Barrel(Box, Color, pEntity);
-	}
-}
-
-
-// Gets the 2D bounding box for the entity
-// Returns false on failure nigga don't fail me
-bool CEsp::GetBox(IClientEntity* pEntity, CEsp::ESPBox &result)
-{
-	// Variables
-	Vector  vOrigin, min, max, sMin, sMax, sOrigin,
-		flb, brt, blb, frt, frb, brb, blt, flt;
-	float left, top, right, bottom;
-
-	// Get the locations
-	vOrigin = pEntity->GetOrigin();
-	min = pEntity->collisionProperty()->GetMins() + vOrigin;
-	max = pEntity->collisionProperty()->GetMaxs() + vOrigin;
-
-	// Points of a 3d bounding box
-	Vector points[] = { Vector(min.x, min.y, min.z),
-		Vector(min.x, max.y, min.z),
-		Vector(max.x, max.y, min.z),
-		Vector(max.x, min.y, min.z),
-		Vector(max.x, max.y, max.z),
-		Vector(min.x, max.y, max.z),
-		Vector(min.x, min.y, max.z),
-		Vector(max.x, min.y, max.z) };
-
-	// Get screen positions
-	if (!Render::WorldToScreen(points[3], flb) || !Render::WorldToScreen(points[5], brt)
-		|| !Render::WorldToScreen(points[0], blb) || !Render::WorldToScreen(points[4], frt)
-		|| !Render::WorldToScreen(points[2], frb) || !Render::WorldToScreen(points[1], brb)
-		|| !Render::WorldToScreen(points[6], blt) || !Render::WorldToScreen(points[7], flt))
-		return false;
-
-	// Put them in an array (maybe start them off in one later for speed?)
-	Vector arr[] = { flb, brt, blb, frt, frb, brb, blt, flt };
-
-	// Init this shit
-	left = flb.x;
-	top = flb.y;
-	right = flb.x;
-	bottom = flb.y;
-
-	// Find the bounding corners for our box
-	for (int i = 1; i < 8; i++)
-	{
-		if (left > arr[i].x)
-			left = arr[i].x;
-		if (bottom < arr[i].y)
-			bottom = arr[i].y;
-		if (right < arr[i].x)
-			right = arr[i].x;
-		if (top > arr[i].y)
-			top = arr[i].y;
-	}
-
-	// Width / height
-	result.x = left;
-	result.y = top;
-	result.w = right - left;
-	result.h = bottom - top;
-
-	return true;
-}
-
-void CEsp::DrawGlow()
-{
-	CGlowObjectManager* GlowObjectManager = (CGlowObjectManager*)GlowManager;
-
-	for (int i = 0; i < GlowObjectManager->size; ++i)
-	{
-		CGlowObjectManager::GlowObjectDefinition_t* glowEntity = &GlowObjectManager->m_GlowObjectDefinitions[i];
-		IClientEntity* Entity = glowEntity->getEntity();
-
-		if (glowEntity->IsEmpty() || !Entity)
-			continue;
-
-		switch (Entity->GetClientClass()->m_ClassID)
-		{
-		case 35:
-			if (Menu::Window.VisualsTab.OptionsGlow.GetIndex())
-			{
-				if (!Menu::Window.VisualsTab.FiltersPlayers.GetState() && !(Entity->GetTeamNum() == hackManager.pLocal()->GetTeamNum()))
-					break;
-				if (Menu::Window.VisualsTab.FiltersEnemiesOnly.GetState() && (Entity->GetTeamNum() == hackManager.pLocal()->GetTeamNum()))
-					break;
-
-				if (GameUtils::IsVisible(hackManager.pLocal(), Entity, 0))
-				{
-					glowEntity->set((Entity->GetTeamNum() == hackManager.pLocal()->GetTeamNum()) ? Color(0, 255, 0, 120) : Color(0, 255, 0, 120));
-				}
-
-				else
-				{
-					glowEntity->set((Entity->GetTeamNum() == hackManager.pLocal()->GetTeamNum()) ? Color(255, 255, 0, 120) : Color(255, 255, 0, 120));
-				}
-			}
-		}
-	}
-}
-
-void CEsp::Barrel(CEsp::ESPBox size, Color color, IClientEntity* pEntity)
-{
-	Vector src3D, src;
-	src3D = pEntity->GetOrigin() - Vector(0, 0, 0);
-
-	if (!Render::WorldToScreen(src3D, src))
+	if ( !game::functions.world_to_screen( start, start_2d ) || !game::functions.world_to_screen( end, end_2d ) )
 		return;
 
-	int ScreenWidth, ScreenHeight;
-	Interfaces::Engine->GetScreenSize(ScreenWidth, ScreenHeight);
+	draw.line( start_2d.x, start_2d.y, end_2d.x, end_2d.y, Color( 0, 255, 0, 255 ) );
 
-	int x = (int)(ScreenWidth * 0.5f);
-	int y = 0;
+	game::math.angle_vectors( fake, forward );
+	forward *= line_length;
+	end = start + forward;
 
+	if ( !game::functions.world_to_screen( start, start_2d ) || !game::functions.world_to_screen( end, end_2d ) )
+		return;
 
-	y = ScreenHeight;
+	draw.line( start_2d.x, start_2d.y, end_2d.x, end_2d.y, Color( 255, 0, 0, 255) );
 
-	Render::Line((int)(src.x), (int)(src.y), x, y, Color(0, 0, 0, 255));
+	game::math.angle_vectors( real, forward );
+	forward *= line_length;
+	end = start + forward;
+
+	if ( !game::functions.world_to_screen( start, start_2d ) || !game::functions.world_to_screen( end, end_2d ) )
+		return;
+
+	draw.line( start_2d.x, start_2d.y, end_2d.x, end_2d.y, Color( 255, 255, 0, 255) );
 }
 
-void CEsp::DrawMoney(IClientEntity* pEntity, CEsp::ESPBox size)
-{
-	ESPBox ArmorBar = size;
+void CEsp::CVisualsPlayer::draw_box(IClientEntity* m_entity, Box box, Color color) {
+	float alpha = flPlayerAlpha[m_entity->GetIndex()];
 
-	int MoneyEnemy = 100;
-	MoneyEnemy = pEntity->GetMoney();
-	char nameBuffer[512];
-	sprintf_s(nameBuffer, "%d $", MoneyEnemy);
-
-	RECT nameSize = Render::GetTextSize(Render::Fonts::ESP, nameBuffer);
-	Render::Text(size.x + (size.w / 2) - (nameSize.right / 2), size.y - 27, Color(255, 255, 0, 255), Render::Fonts::ESP, nameBuffer);
-}
-
-// Get an entities color depending on team and vis ect
-Color CEsp::GetPlayerColor(IClientEntity* pEntity)
-{
-	int TeamNum = pEntity->GetTeamNum();
-	bool IsVis = GameUtils::IsVisible(hackManager.pLocal(), pEntity, (int)CSGOHitboxID::Head);
-
-	Color color;
-
-	if (TeamNum == TEAM_CS_T)
-	{
-		if (IsVis)
-			color = Color(235, 200, 0, 255);
-		else
-			color = Color(235, 50, 0, 255);
-	}
-	else
-	{
-		if (IsVis)
-			color = Color(120, 210, 26, 255);
-		else
-			color = Color(15, 110, 220, 255);
+	if (visualconfig.player.bBoxFill && visualconfig.player.flBoxFillOpacity > 0) {
+		Color color_fill = Color(color.r(), color.g(), color.b(), (alpha / 255) * visualconfig.player.flBoxFillOpacity * 2.55);
+		draw.rect(box.x, box.y, box.w, box.h, color_fill);
 	}
 
-
-	return color;
-}
-
-// 2D  Esp box
-void CEsp::DrawBox(CEsp::ESPBox size, Color color)
-{
-	{
-		{
-			int VertLine;
-			int HorzLine;
-			// Corner Box
-			//bool IsVis = GameUtils::IsVisible(hackManager.pLocal(), pEntity, (int)CSGOHitboxID::Chest);  da dream
-			int xd = Menu::Window.VisualsTab.OptionsBox.GetIndex();
-			if (Menu::Window.VisualsTab.OptionsBox.GetIndex() == 1)
-			{
-				// Corner Box
-				int VertLine = (((float)size.w) * (0.20f));
-				int HorzLine = (((float)size.h) * (0.20f));
-
-				Render::Clear(size.x, size.y - 1, VertLine, 1, Color(10, 10, 10, 240));
-				Render::Clear(size.x + size.w - VertLine, size.y - 1, VertLine, 1, Color(10, 10, 10, 240));
-				Render::Clear(size.x, size.y + size.h - 1, VertLine, 1, Color(10, 10, 10, 240));
-				Render::Clear(size.x + size.w - VertLine, size.y + size.h - 1, VertLine, 1, Color(10, 10, 10, 240));
-
-				Render::Clear(size.x - 1, size.y, 1, HorzLine, Color(10, 10, 10, 240));
-				Render::Clear(size.x - 1, size.y + size.h - HorzLine, 1, HorzLine, Color(10, 10, 10, 240));
-				Render::Clear(size.x + size.w - 1, size.y, 1, HorzLine, Color(10, 10, 10, 240));
-				Render::Clear(size.x + size.w - 1, size.y + size.h - HorzLine, 1, HorzLine, Color(10, 10, 10, 240));
-
-				Render::Clear(size.x, size.y, VertLine, 1, color);
-				Render::Clear(size.x + size.w - VertLine, size.y, VertLine, 1, color);
-				Render::Clear(size.x, size.y + size.h, VertLine, 1, color);
-				Render::Clear(size.x + size.w - VertLine, size.y + size.h, VertLine, 1, color);
-
-				Render::Clear(size.x, size.y, 1, HorzLine, color);
-				Render::Clear(size.x, size.y + size.h - HorzLine, 1, HorzLine, color);
-				Render::Clear(size.x + size.w, size.y, 1, HorzLine, color);
-				Render::Clear(size.x + size.w, size.y + size.h - HorzLine, 1, HorzLine, color);
-			}
-			if (Menu::Window.VisualsTab.OptionsBox.GetIndex() == 2)
-			{
-				{
-					Render::Outline(size.x, size.y, size.w, size.h, color);
-					Render::Outline(size.x - 1, size.y - 1, size.w + 2, size.h + 2, Color(10, 10, 10, 240));
-					Render::Outline(size.x + 1, size.y + 1, size.w - 2, size.h - 2, Color(10, 10, 10, 240));
-				}
+	if (visualconfig.player.bBox) {
+		if (!visualconfig.player.iBoxType) {
+			draw.outline(box.x, box.y, box.w, box.h, color);
+			if (visualconfig.player.bBoxOutlines) {
+				draw.outline(box.x - 1, box.y - 1, box.w + 2, box.h + 2, Color(21, 21, 21, alpha));
+				draw.outline(box.x + 1, box.y + 1, box.w - 2, box.h - 2, Color(21, 21, 21, alpha));
 			}
 		}
-	}
-}
+		else if (visualconfig.player.iBoxType == 1) {
 
+			float width_corner = box.w / 4;
+			float height_corner = width_corner;
 
-// Unicode Conversions
-static wchar_t* CharToWideChar(const char* text)
-{
-	size_t size = strlen(text) + 1;
-	wchar_t* wa = new wchar_t[size];
-	mbstowcs_s(NULL, wa, size/4, text, size);
-	return wa;
-}
+			if (visualconfig.player.bBoxOutlines) {
+				draw.rect(box.x - 1, box.y - 1, width_corner + 2, 3, Color(21, 21, 21, alpha));
+				draw.rect(box.x - 1, box.y - 1, 3, height_corner + 2, Color(21, 21, 21, alpha));
 
-// Player name
-void CEsp::DrawName(player_info_t pinfo, CEsp::ESPBox size)
-{
-	RECT nameSize = Render::GetTextSize(Render::Fonts::ESP, pinfo.name);
-	Render::Text(size.x + (size.w / 2) - (nameSize.right / 2), size.y - 16,
-		Color(255, 255, 255, 255), Render::Fonts::ESP, pinfo.name);
-}
+				draw.rect((box.x + box.w) - width_corner - 1, box.y - 1, width_corner + 2, 3, Color(21, 21, 21, alpha));
+				draw.rect(box.x + box.w - 1, box.y - 1, 3, height_corner + 2, Color(21, 21, 21, alpha));
 
-void CEsp::Armor(ESPBox box, IClientEntity* pEntity)
-{
-	float armor = pEntity->ArmorValue();
+				draw.rect(box.x - 1, box.y + box.h - 4, width_corner + 2, 3, Color(21, 21, 21, alpha));
+				draw.rect(box.x - 1, (box.y + box.h) - height_corner - 4, 3, height_corner + 2, Color(21, 21, 21, alpha));
 
-	if (armor > 100)
-		armor = 100;
+				draw.rect((box.x + box.w) - width_corner - 1, box.y + box.h - 4, width_corner + 2, 3, Color(21, 21, 21, alpha));
+				draw.rect(box.x + box.w - 1, (box.y + box.h) - height_corner - 4, 3, height_corner + 3, Color(21, 21, 21, alpha));
+			}
 
-	Interfaces::Surface->DrawSetColor(0, 0, 0, 150);
-	if (Menu::Window.VisualsTab.OptionsArmor.GetState())
-	{
-		Interfaces::Surface->DrawOutlinedRect(box.x + box.w + 1, box.y - 1, box.x + box.w + 5, box.y + box.h + 1);
+			draw.rect(box.x, box.y, width_corner, 1, color);
+			draw.rect(box.x, box.y, 1, height_corner, color);
 
-		int height = armor * box.h / 100;
+			draw.rect((box.x + box.w) - width_corner, box.y, width_corner, 1, color);
+			draw.rect(box.x + box.w, box.y, 1, height_corner, color);
 
-		if (armor > 0) {
-			Interfaces::Surface->DrawSetColor(80, 135, 190, 255);
-			Interfaces::Surface->DrawFilledRect(box.x + box.w + 2,
-				box.y + box.h - height,
-				box.x + box.w + 4,
-				box.y + box.h);
+			draw.rect(box.x, box.y + box.h - 3, width_corner, 1, color);
+			draw.rect(box.x, (box.y + box.h) - height_corner - 3, 1, height_corner, color);
+
+			draw.rect((box.x + box.w) - width_corner, box.y + box.h - 3, width_corner, 1, color);
+			draw.rect(box.x + box.w, (box.y + box.h) - height_corner - 3, 1, height_corner + 1, color);
 		}
 	}
 }
-RECT get_text_size(const char* _Input, int font)
-{
-	int apple = 0;
-	char Buffer[2048] = { '\0' };
-	va_list Args;
-	va_start(Args, _Input);
-	vsprintf_s(Buffer, _Input, Args);
-	va_end(Args);
-	size_t Size = strlen(Buffer) + 1;
-	wchar_t* WideBuffer = new wchar_t[Size];
-	mbstowcs_s(0, WideBuffer, Size, Buffer, Size - 1);
-	int Width = 0, Height = 0;
 
-	Interfaces::Surface->GetTextSize(font, WideBuffer, Width, Height);
-
-	RECT outcome = { 0, 0, Width, Height };
-	return outcome;
-}
-// Draw a health bar. For Tf2 when a bar is bigger than max health a second bar is displayed
-void CEsp::DrawHealth(ESPBox box, IClientEntity* m_entity)
-{
-	float alpha = 255;
-	int player_health = m_entity->GetHealth() > 100 ? 100 : m_entity->GetHealth();
-
-	if (player_health) {
-		int color[3] = { 0, 0, 0 };
-
-		if (player_health >= 85) {
-			color[0] = 83; color[1] = 200; color[2] = 84;
-		}
-		else if (player_health >= 70) {
-			color[0] = 107; color[1] = 142; color[2] = 35;
-		}
-		else if (player_health >= 55) {
-			color[0] = 173; color[1] = 255; color[2] = 47;
-		}
-		else if (player_health >= 40) {
-			color[0] = 255; color[1] = 215; color[2] = 0;
-		}
-		else if (player_health >= 25) {
-			color[0] = 255; color[1] = 127; color[2] = 80;
-		}
-		else if (player_health >= 10) {
-			color[0] = 205; color[1] = 92; color[2] = 92;
-		}
-		else if (player_health >= 0) {
-			color[0] = 178; color[1] = 34; color[2] = 34;
-		}
-
-
-			Render::Outline(box.x - 7, box.y - 1, 4, box.h + 2, Color(21, 21, 21, alpha));
-
-		int health_height = player_health * box.h / 100;
-		int add_space = box.h - health_height;
-
-		Color hec = Color(color[0], color[1], color[2], alpha);
-
-		Render::DrawRect(box.x - 6, box.y, 2, box.h, Color(21, 21, 21, alpha));
-		Render::DrawRect(box.x - 6, box.y + add_space, 2, health_height, hec);
-
-		if (player_health < 100) {
-			RECT text_size = get_text_size(std::to_string(player_health).c_str(), Render::Fonts::ESPSmall);
-			Render::Textf(box.x - 5 - (text_size.right / 2), box.y + add_space - (text_size.bottom / 2), Color(255, 255, 255, alpha), Render::Fonts::ESPSmall, std::to_string(player_health).c_str());
-		}
+void CEsp::CVisualsPlayer::draw_health(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bHealth) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+		int player_health = m_entity->GetHealth() > 100 ? 100 : m_entity->GetHealth();
 		
+		if (player_health) {
+			int color[3] = { 0, 0, 0 };
+
+			if (player_health >= 85) {
+				color[0] = 83; color[1] = 200; color[2] = 84;
+			} else if (player_health >= 70) {
+				color[0] = 107; color[1] = 142; color[2] = 35;
+			} else if (player_health >= 55) {
+				color[0] = 173; color[1] = 255; color[2] = 47;
+			} else if (player_health >= 40) {
+				color[0] = 255; color[1] = 215; color[2] = 0;
+			} else if (player_health >= 25) {
+				color[0] = 255; color[1] = 127; color[2] = 80;
+			} else if (player_health >= 10) {
+				color[0] = 205; color[1] = 92; color[2] = 92;
+			} else if (player_health >= 0) {
+				color[0] = 178; color[1] = 34; color[2] = 34;
+			}
+
+			if (visualconfig.player.bBoxOutlines)
+				draw.outline(box.x - 7, box.y - 1, 4, box.h + 2, Color(21, 21, 21, alpha));
+
+			int health_height = player_health * box.h / 100;
+			int add_space = box.h - health_height;
+
+			Color hec = Color(color[0], color[1], color[2], alpha);
+
+			draw.rect(box.x - 6, box.y, 2, box.h, Color(21, 21, 21, alpha));
+			draw.rect(box.x - 6, box.y + add_space, 2, health_height, hec);
+
+			if (visualconfig.player.bHealthText && player_health < 100) {
+				RECT text_size = draw.get_text_size(std::to_string(player_health).c_str(), draw.fonts.esp_small);
+				draw.text(box.x - 5 - (text_size.right / 2), box.y + add_space - (text_size.bottom / 2), std::to_string(player_health).c_str(), draw.fonts.esp_small, Color(255, 255, 255, alpha));
+			}
+		}
 	}
 }
 
-// Cleans the internal class name up to something human readable and nice
-std::string CleanItemName(std::string name)
-{
-	std::string Name = name;
-	// Tidy up the weapon Name
-	if (Name[0] == 'C')
-		Name.erase(Name.begin());
+void CEsp::CVisualsPlayer::draw_armor(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bArmor) {
+		int player_armor = m_entity->ArmorValue() > 100 ? 100 : m_entity->ArmorValue();
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
 
-	// Remove the word Weapon
-	auto startOfWeap = Name.find("Weapon");
-	if (startOfWeap != std::string::npos)
-		Name.erase(Name.begin() + startOfWeap, Name.begin() + startOfWeap + 6);
+		if (player_armor) {
+			Color arc = Color(visualconfig.player.cArmorColor, alpha);
 
-	return Name;
+			if (visualconfig.player.bBoxOutlines)
+				draw.outline(box.x - 1, box.y + box.h + 2, box.w + 2, 4, Color(21, 21, 21, alpha));
+
+			int armor_width = player_armor * box.w / 100;
+
+			draw.rect(box.x, box.y + box.h + 3, box.w, 2, Color(21, 21, 21, alpha));
+			draw.rect(box.x, box.y + box.h + 3, armor_width, 2, arc);
+		}
+	}
 }
 
-// Anything else: weapons, class state? idk
-void CEsp::DrawInfo(IClientEntity* pEntity, CEsp::ESPBox box)
-{
+void CEsp::CVisualsPlayer::draw_name(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bPlayerNames) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+
+		player_info_t player_info;
+		if (m_pEngine->GetPlayerInfo(m_entity->GetIndex(), &player_info)) {
+			RECT name_size = draw.get_text_size(player_info.name, draw.fonts.esp);
+			draw.text(box.x + (box.w / 2) - (name_size.right / 2), box.y - 14, player_info.name, draw.fonts.esp, Color(225, 225, 225, alpha));
+		}
+	}
+}
+
+void CEsp::CVisualsPlayer::draw_weapon(IClientEntity* m_entity, Box box) {
+	float alpha = flPlayerAlpha[m_entity->GetIndex()];
 
 	int bottom_pos = 0;
 	bool wa_enabled = false;
-	CBaseCombatWeapon* pWeapon = pEntity->GetWeapon();
+	CBaseCombatWeapon* weapon = m_entity->GetWeapon();
 
-	if (pWeapon) {
-		int player_armor = pEntity->ArmorValue() > 100 ? 100 : pEntity->ArmorValue();
-		bool armor = false;
-		if (Menu::Window.VisualsTab.OptionsWeapon.GetState()) {
-
+	if (weapon) {
+		int player_armor = m_entity->ArmorValue() > 100 ? 100 : m_entity->ArmorValue();
+		bool armor = visualconfig.player.bArmor && player_armor;
+		if (visualconfig.player.bWeaponNames || visualconfig.player.bPlayerAmmo) {
 			char buffer[128];
 			char* format = "";
-
-			format = "%s - %1.0f";
-			float ammo = pWeapon->GetAmmoInClip();
-			std::string noammo = "no ammo";
-			if (ammo < 1)
-			{
-				sprintf_s(buffer, format, pWeapon->GetGunName(), noammo);
+			if (visualconfig.player.bWeaponNames && !visualconfig.player.bPlayerAmmo) {
+				format = XorStr("%s");
+				sprintf_s(buffer, format, weapon->GetGunName());
+				wa_enabled = true;
+			} else if (!visualconfig.player.bWeaponNames && visualconfig.player.bPlayerAmmo) {
+				format = XorStr("%1.0f");
+				float ammo = weapon->GetAmmoInClip();
+				sprintf_s(buffer, format, ammo);
+				wa_enabled = true;
+			} else if (visualconfig.player.bWeaponNames && visualconfig.player.bPlayerAmmo) {
+				format = XorStr("%s | %1.0f");
+				float ammo = weapon->GetAmmoInClip();
+				sprintf_s(buffer, format, weapon->GetGunName(), ammo);
+				wa_enabled = true;
 			}
-			else
-			{
-				sprintf_s(buffer, format, pWeapon->GetGunName(), ammo);
-			}
 
-			wa_enabled = true;
-
-			RECT size = get_text_size(buffer, Render::Fonts::ESP);
-			Render::Text(box.x + (box.w / 2) - (size.right / 2), box.y + box.h + (armor ? 2 : 2), Color(225, 225, 225, 255), Render::Fonts::ESP, buffer);
+			RECT size = draw.get_text_size(buffer, draw.fonts.esp_extra);
+			draw.text(box.x + (box.w / 2) - (size.right / 2), box.y + box.h + (armor ? 5 : 2), buffer, draw.fonts.esp_extra, Color(225, 225, 225, alpha));
 			bottom_pos += 1;
-
 		}
 	}
 }
 
+void CEsp::CVisualsPlayer::draw_hit_angle(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bHitAngle) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+		CPlayer* m_player = plist.get_player(m_entity->GetIndex());
+		RECT size = draw.get_text_size(XorStr("HA"), draw.fonts.esp_extra );
 
-// Little cross on their heads
-void CEsp::DrawCross(IClientEntity* pEntity)
-{
-	Vector cross = pEntity->GetHeadPos(), screen;
-	static int Scale = 2;
-	if (Render::WorldToScreen(cross, screen))
-	{
-		Render::Clear(screen.x - Scale, screen.y - (Scale * 2), (Scale * 2), (Scale * 4), Color(20, 20, 20, 160));
-		Render::Clear(screen.x - (Scale * 2), screen.y - Scale, (Scale * 4), (Scale * 2), Color(20, 20, 20, 160));
-		Render::Clear(screen.x - Scale - 1, screen.y - (Scale * 2) - 1, (Scale * 2) - 2, (Scale * 4) - 2, Color(250, 250, 250, 160));
-		Render::Clear(screen.x - (Scale * 2) - 1, screen.y - Scale - 1, (Scale * 4) - 2, (Scale * 2) - 2, Color(250, 250, 250, 160));
+		bool draw_scoped = (visualconfig.player.bScoped && m_entity->IsScoped( ));
+		draw.text( ( box.x + box.w ) + 3, box.y + (draw_scoped ? 13 : 0), XorStr("HA"), draw.fonts.esp_extra, m_player->resolver_data.has_hit_angle ? Color(55, 255, 55, alpha) : Color(255, 255, 255, alpha));
 	}
 }
 
-// Draws a dropped CS:GO Item
-void CEsp::DrawDrop(IClientEntity* pEntity, ClientClass* cClass)
-{
-	Vector Box;
-	CBaseCombatWeapon* Weapon = (CBaseCombatWeapon*)pEntity;
-	IClientEntity* plr = Interfaces::EntList->GetClientEntityFromHandle((HANDLE)Weapon->GetOwnerHandle());
-	if (!plr && Render::WorldToScreen(Weapon->GetOrigin(), Box))
-	{
-		if (Menu::Window.VisualsTab.OptionsBox.GetIndex())
-		{
-			Render::Outline(Box.x - 2, Box.y - 2, 4, 4, Color(255, 255, 255, 255));
-			Render::Outline(Box.x - 3, Box.y - 3, 6, 6, Color(10, 10, 10, 150));
-		}
+void CEsp::CVisualsPlayer::draw_skeletons(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bSkeletons) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+		studiohdr_t* studio_hdr = m_pModelInfo->GetStudioModel(m_entity->GetModel());
 
-		if (Menu::Window.VisualsTab.OptionsInfo.GetState())
-		{
-			std::string ItemName = CleanItemName(cClass->m_pNetworkName);
-			RECT TextSize = Render::GetTextSize(Render::Fonts::ESP, ItemName.c_str());
-			Render::Text(Box.x - (TextSize.right / 2), Box.y - 16, Color(255, 255, 255, 255), Render::Fonts::ESP, ItemName.c_str());
-		}
-	}
-}
+		if (!studio_hdr)
+			return;
 
-// Draws a chicken
-void CEsp::DrawChicken(IClientEntity* pEntity, ClientClass* cClass)
-{
-	ESPBox Box;
+		Vector vParent, vChild, sParent, sChild;
 
-	if (GetBox(pEntity, Box))
-	{
-		player_info_t pinfo; strcpy_s(pinfo.name, "Chicken");
-		if (Menu::Window.VisualsTab.OptionsBox.GetIndex())
-			DrawBox(Box, Color(255,255,255,255));
+		for (int j = 0; j < studio_hdr->numbones; j++) {
+			mstudiobone_t* pBone = studio_hdr->GetBone(j);
 
-		if (Menu::Window.VisualsTab.OptionsName.GetState())
-			DrawName(pinfo, Box);
-	}
-}
+			if (pBone && (pBone->flags & BONE_USED_BY_HITBOX) && (pBone->parent != -1)) {
+				vChild = m_entity->GetBonePos(j);
+				vParent = m_entity->GetBonePos(pBone->parent);
 
-// Draw the planted bomb and timer
-void CEsp::DrawBombPlanted(IClientEntity* pEntity, ClientClass* cClass) 
-{
-	BombCarrier = nullptr;
-
-	Vector vOrig; Vector vScreen;
-	vOrig = pEntity->GetOrigin();
-	CCSBomb* Bomb = (CCSBomb*)pEntity;
-
-	if (Render::WorldToScreen(vOrig, vScreen))
-	{
-		float flBlow = Bomb->GetC4BlowTime();
-		float TimeRemaining = flBlow - (Interfaces::Globals->interval_per_tick * hackManager.pLocal()->GetTickBase());
-		char buffer[64];
-		sprintf_s(buffer, "C4: %.1f", TimeRemaining);
-		if (TimeRemaining >= 0.0f)
-			Render::Text(vScreen.x, vScreen.y, Color(208, 215, 25, 255), Render::Fonts::Menu, buffer);
-	}
-}
-
-void CEsp::DrawBomb(IClientEntity* pEntity, ClientClass* cClass)
-{
-	BombCarrier = nullptr;
-	CBaseCombatWeapon *BombWeapon = (CBaseCombatWeapon *)pEntity;
-	Vector vOrig; Vector vScreen;
-	vOrig = pEntity->GetOrigin();
-	bool adopted = true;
-	HANDLE parent = BombWeapon->GetOwnerHandle();
-	if (parent || (vOrig.x == 0 && vOrig.y == 0 && vOrig.z == 0))
-	{
-		IClientEntity* pParentEnt = (Interfaces::EntList->GetClientEntityFromHandle(parent));
-		if (pParentEnt && pParentEnt->IsAlive())
-		{
-			BombCarrier = pParentEnt;
-			adopted = false;
-		}
-	}
-
-	if (adopted)
-	{
-		if (Render::WorldToScreen(vOrig, vScreen))
-		{
-			Render::Text(vScreen.x, vScreen.y, Color(208, 215, 25, 255), Render::Fonts::Menu, "C4");
-		}
-	}
-}
-
-void DrawBoneArray(int* boneNumbers, int amount, IClientEntity* pEntity, Color color)
-{
-	Vector LastBoneScreen;
-	for (int i = 0; i < amount; i++)
-	{
-		Vector Bone = pEntity->GetBonePos(boneNumbers[i]);
-		Vector BoneScreen;
-
-		if (Render::WorldToScreen(Bone, BoneScreen))
-		{
-			if (i>0)
-			{
-				Render::Line(LastBoneScreen.x, LastBoneScreen.y, BoneScreen.x, BoneScreen.y, color);
+				if (game::functions.world_to_screen(vParent, sParent) && game::functions.world_to_screen(vChild, sChild)) {
+					draw.line(sParent[0], sParent[1], sChild[0], sChild[1], Color(visualconfig.player.cSkeletonsColor, alpha));
+				}
 			}
 		}
-		LastBoneScreen = BoneScreen;
 	}
 }
 
-void DrawBoneTest(IClientEntity *pEntity)
-{
-	for (int i = 0; i < 127; i++)
-	{
-		Vector BoneLoc = pEntity->GetBonePos(i);
-		Vector BoneScreen;
-		if (Render::WorldToScreen(BoneLoc, BoneScreen))
-		{
-			char buf[10];
-			_itoa_s(i, buf, 10);
-			Render::Text(BoneScreen.x, BoneScreen.y, Color(255, 255, 255, 180), Render::Fonts::ESP, buf);
+void CEsp::CVisualsPlayer::draw_snaplines(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bSnapLines) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+		if (box.x >= 0 && box.y >= 0) {
+			int width = 0;
+			int height = 0;
+
+			Vector to = Vector(box.x + (box.w / 2), box.y + box.h, 0);
+			m_pEngine->GetScreenSize(width, height);
+
+			Vector From((width / 2), (height / 2), 0);
+			draw.line(From.x, From.y, to.x, to.y, Color(visualconfig.player.cSnaplinesColor, alpha));
 		}
 	}
 }
 
-void CEsp::DrawSkeleton(IClientEntity* pEntity)
-{
-	studiohdr_t* pStudioHdr = Interfaces::ModelInfo->GetStudiomodel(pEntity->GetModel());
-
-	if (!pStudioHdr)
-		return;
-
-	Vector vParent, vChild, sParent, sChild;
-
-	for (int j = 0; j < pStudioHdr->numbones; j++)
-	{
-		mstudiobone_t* pBone = pStudioHdr->GetBone(j);
-
-		if (pBone && (pBone->flags & BONE_USED_BY_HITBOX) && (pBone->parent != -1))
-		{
-			vChild = pEntity->GetBonePos(j);
-			vParent = pEntity->GetBonePos(pBone->parent);
-
-			if (Render::WorldToScreen(vParent, sParent) && Render::WorldToScreen(vChild, sChild))
-			{
-				Render::Line(sParent[0], sParent[1], sChild[0], sChild[1], Color(0, 0, 0,255));
+void CEsp::CVisualsPlayer::draw_hitbones(IClientEntity* m_entity) {
+	if (visualconfig.player.bHitbones) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+		for (int i = 0; i < 19; i++) {
+			Vector screen_position;
+			Vector hitbone_pos = game::functions.get_hitbox_location(m_entity, i);
+			if (game::functions.world_to_screen(hitbone_pos, screen_position)) {
+				draw.rect(screen_position.x, screen_position.y, 4, 4, Color(21, 21, 21, alpha));
+				draw.rect(screen_position.x + 1, screen_position.y + 1, 2, 2, Color(visualconfig.player.cHitbonesColor, alpha));
 			}
+		}
+	}
+}
+
+void CEsp::CVisualsPlayer::draw_scoped(IClientEntity* m_entity, Box box) {
+	if (visualconfig.player.bScoped) {
+		float alpha = flPlayerAlpha[m_entity->GetIndex()];
+
+		if (m_entity->IsScoped()) {
+			draw.text((box.x + box.w) + 3, box.y, "SCOPED", draw.fonts.esp_extra, Color(255, 99, 71, alpha));
+		}
+	}
+}
+
+void CEsp::CVisualsPlayer::direction_arrow( const Vector& origin ) {
+	if ( visualconfig.player.bDirectionArrow ) {
+		constexpr float radius = 360.0f;
+		int width, height;
+		m_pEngine->GetScreenSize( width, height );
+
+		Vector vRealAngles;
+		m_pEngine->GetViewAngles( vRealAngles );
+
+		Vector vForward, vRight, vUp( 0.0f, 0.0f, 1.0f );
+
+		game::math.angle_vectors( vRealAngles, &vForward, NULL, NULL );
+
+		vForward.z = 0.0f;
+		VectorNormalize( vForward );
+		CrossProduct( vUp, vForward, vRight );
+
+		float flFront = DotProduct( origin, vForward );
+		float flSide = DotProduct( origin, vRight );
+		float flXPosition = radius * -flSide;
+		float flYPosition = radius * -flFront;
+
+		float rotation = game::globals.UserCmd->viewangles.y;
+
+		rotation = atan2( flXPosition, flYPosition ) + M_PI;
+		rotation *= 180.0f / M_PI;
+
+		float flYawRadians = -( rotation )* M_PI / 180.0f;
+		float flCosYaw = cos( flYawRadians );
+		float flSinYaw = sin( flYawRadians );
+
+		flXPosition = ( int )( ( width / 2.0f ) + ( radius * flSinYaw ) );
+		flYPosition = ( int )( ( height / 2.0f ) - ( radius * flCosYaw ) );
+
+		draw.rect( flXPosition, flYPosition, 10, 10, Color( visualconfig.player.cDirectionArrowColor ) );
+	}
+}
+
+void CEsp::CGlow::shutdown() {
+	for (auto i = 0; i < m_pGlowObjManager->size; i++) {
+		auto& glow_object = m_pGlowObjManager->m_GlowObjectDefinitions[i];
+		auto entity = reinterpret_cast<IClientEntity*>(glow_object.m_pEntity);
+
+		if (glow_object.IsUnused())
+			continue;
+
+		if (!entity || entity->IsDormant())
+			continue;
+
+		glow_object.m_flGlowAlpha = 0.0f;
+	}
+}
+
+void CEsp::CGlow::paint()
+{
+	auto m_local = game::localdata.localplayer();
+	for (auto i = 0; i < m_pGlowObjManager->size; i++) {
+		auto glow_object = &m_pGlowObjManager->m_GlowObjectDefinitions[i];
+
+		IClientEntity *m_entity = glow_object->m_pEntity;
+
+		if (!glow_object->m_pEntity || glow_object->IsUnused())
+			continue;
+
+		if (m_entity->GetClientClass()->m_ClassID == 35) {
+			if (m_entity->GetTeamNum() == m_local->GetTeamNum() && !visualconfig.player.bTeammates || visualconfig.player.bTeammates) continue;
+
+			bool m_visible = game::functions.visible(m_local, m_entity, 0);
+			float m_flRed = visualconfig.player.cGlowColor[0], m_flGreen = visualconfig.player.cGlowColor[1], m_flBlue = visualconfig.player.cGlowColor[2];
+			bool m_teammate = m_entity->GetTeamNum() == m_local->GetTeamNum();
+
+			glow_object->m_vGlowColor = Vector(m_flRed / 255, m_flGreen / 255, m_flBlue / 255);
+			glow_object->m_flGlowAlpha = (visualconfig.player.flGlowOpacity * 2.55) / 255;
+			glow_object->m_bRenderWhenOccluded = true;
+			glow_object->m_bRenderWhenUnoccluded = false;
 		}
 	}
 }

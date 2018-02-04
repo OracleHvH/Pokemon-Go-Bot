@@ -1,6 +1,4 @@
-/*
-Syn's AyyWare Framework 2015
-*/
+
 
 #pragma once
 
@@ -12,160 +10,181 @@ class CRageBotTab : public CTab
 public:
 	void Setup();
 
-	CLabel ActiveLabel;
-	CCheckBox Active;
-
 	CGroupBox AimbotGroup;
-	CCheckBox AimbotEnable;
-	CCheckBox AimbotAutoFire;
-	CSlider  AimbotFov;
-	CCheckBox AimbotSilentAim;
-	CCheckBox PVSFix;
-	CCheckBox AimbotResolver;
-	CCheckBox AdvancedResolver;
-	CCheckBox AutoRevolver;
-	CSlider AddFakeYaw;
-	CSlider CustomPitch;
-	CCheckBox LBY;
-	CComboBox FakeYaw;
-	CCheckBox LowerbodyFix;
-	CCheckBox PreferBodyAim;
-	CCheckBox AWPAtBody;
-	CSlider BaimIfUnderXHealth;
-	CSlider XShots;
-	CCheckBox EnginePrediction;
-	CCheckBox AimbotAimStep;
-	CCheckBox AimbotKeyPress;
-	CKeyBind  AimbotKeyBind;
-	CKeyBind  AimbotStopKey;
-	CKeyBind OtherSlowMotion;
-	CKeyBind OtherFakeWalk;
-
-	CGroupBox TargetGroup;
+	CCheckBox Enabled;
 	CComboBox TargetSelection;
-	CCheckBox TargetFriendlyFire;
-	CComboBox TargetHitbox;
-	CComboBox TargetHitscan;
-	CCheckBox TargetMultipoint;
-	CSlider   TargetPointscale;
+	CCheckBox FriendlyFire;
+	CSlider Pointscale;
+	CCheckBox AutoFire;
+	CComboBox AutoFireMode;
+	CComboBox AutoFireTarget;
+	CComboBox AutoFireRevolverMode;
+	CKeyBind AutoFireKey;
+	CCheckBox AutoWall;
+	CComboBox AimbotMode;
+	CSlider MaximumFov;
+	CSlider MinimumDamage;
+	CCheckBox AimStep;
+	CCheckBox PreferBaim;
+	CSlider BaimOnXHealth;
+	CCheckBox BaimIfDeadly;
+	CCheckBox BodyAimAwp;
+	CComboBox BodyAimAwpMode;
+	CCheckBox BodyAimScout;
+	CComboBox BodyAimScoutMode;
+	CCheckBox MinimumHitChance;
+	CSlider MinimumHitChanceAmount;
+	CCheckBox AutomaticScope;
+	CCheckBox Autostop;
+	CComboBox AutostopType;
+	CCheckBox AccuracyNotCrouching;
+	CCheckBox RemoveRecoil;
+	CMultiBox HitscanBones;
 
-	CGroupBox AccuracyGroup;
-	CCheckBox AccuracyRecoil;
-	CCheckBox Nospread;
-	CCheckBox AccuracyAutoWall;
-	CSlider AccuracyMinimumDamage;
-	CCheckBox AccuracyAutoStop;
-	CCheckBox AccuracyAutoCrouch;
-	CCheckBox AccuracyAutoScope;
-	CSlider   AccuracyHitchance;
+	CGroupBox DefaultAntiAimGroup;
+	class StagnantAASettings
+	{
+	public:
+		CComboBox RealPitch;
+		CComboBox RealYaw;
+		CSlider RealYawOffset;
+		CComboBox FakeYaw;
+		CSlider FakeYawOffset;
+		CCheckBox CleanUp;
+	};
+	StagnantAASettings stagnant_aa;
+
+	class MovingAASettings
+	{
+	public:
+		CComboBox RealPitch;
+		CComboBox RealYaw;
+		CSlider RealYawOffset;
+		CComboBox FakeYaw;
+		CSlider FakeYawOffset;
+		CCheckBox CleanUp;
+	};
+	MovingAASettings moving_aa;
+
+	class EdgeAASettings
+	{
+	public:
+		CComboBox Type;
+		CComboBox RealPitch;
+		CComboBox RealYaw;
+		CSlider RealYawOffset;
+		CComboBox FakeYaw;
+		CSlider FakeYawOffset;
+	};
+	EdgeAASettings edge_aa;
+
+	CCheckBox DormantCheck;
+	CComboBox RealYawDirection;
+	CSlider RotateSpeed;
+	CSlider JitterRange;
+	CCheckBox Lbybreaker;
+	CSlider LbyDelta;
+
+	CGroupBox ResolverOptions;
+	CCheckBox AntiAimCorrection;
+	CCheckBox ResolverOverride;
+	CKeyBind ResolverOverrideKey;
+	CCheckBox DisableInterpolation;
+	CCheckBox Backtracking;
+	CCheckBox LinearExtrapolations;
+	CCheckBox AngleLodge;
+	CSlider AngleLodgeSpeed;
 	CCheckBox ResolverDebug;
-	CComboBox AccuracyResolver;
-	CCheckBox AccuracyPositionAdjustment;
-
-	CGroupBox AntiAimGroup;
-	CCheckBox AntiAimEnable;
-	CComboBox AntiAimPitch;
-	CComboBox AntiAimYaw;
-	CCheckBox FlipAA;
-	CCheckBox AntiAimEdge;
-	CSlider AntiAimOffset;
-	CCheckBox AntiAimKnife;
-	CCheckBox AccuracyResolver2;
-	CKeyBind AccuracyAntifakewalk;
-	CCheckBox AntiAimTarget;
-	CCheckBox FreeStanding;
-	CSlider FreeStandingDelta;
-	CSlider FreeStandingVelocityBreak;
+	CCheckBox LowerbodyIndicator;
 };
 
-class CLegitBotTab : public CTab
+class CLegitTab : public CTab
 {
 public:
 	void Setup();
 
-	// Master Switch
-	CLabel ActiveLabel;
-	CCheckBox Active;
-
 	CGroupBox AimbotGroup;
 
-	CCheckBox AimbotEnable;
-	CCheckBox AimbotAutoFire;
-	CCheckBox AimbotFriendlyFire;
-	CCheckBox AimbotKeyPress;
-	CKeyBind  AimbotKeyBind;
-	CCheckBox AimbotSmokeCheck;
+	class CPistol
+	{
+	public:
+		CCheckBox Enabled;
+		CComboBox AimbotMode;
+		CCheckBox AutoFire;
+		CComboBox AutoFireMode;
+		CComboBox AutoFireTarget;
+		CKeyBind AutoFireKey;
+		CSlider FieldOfView;
+		CComboBox ReactionTime;
+		CSlider Recoil;
+		CSlider Smoothing;
+	};
+	CPistol pistol;
 
-	CGroupBox TriggerGroup;
-	CCheckBox TriggerEnable;
-	CCheckBox TriggerKeyPress;
-	CCheckBox AimbotAutoPistol;
-	CKeyBind  TriggerKeyBind;
-	CCheckBox TriggerHitChance;
-	CSlider   TriggerHitChanceAmmount;
-	CSlider   TriggerDelay;
-	CSlider   TriggerBurst;
-	CSlider   TriggerBreak;
-	CCheckBox TriggerRecoil;
-	CCheckBox OtherxGodWalk;
+	class CSMG
+	{
+	public:
+		CCheckBox Enabled;
+		CComboBox AimbotMode;
+		CCheckBox AutoFire;
+		CComboBox AutoFireMode;
+		CComboBox AutoFireTarget;
+		CKeyBind AutoFireKey;
+		CSlider FieldOfView;
+		CComboBox ReactionTime;
+		CSlider Recoil;
+		CSlider Smoothing;
+	};
+	CSMG smg;
 
-	CGroupBox TriggerFilterGroup;
-	CCheckBox TriggerHead;
-	CCheckBox TriggerChest;
-	CCheckBox TriggerStomach;
-	CCheckBox TriggerArms;
-	CCheckBox TriggerLegs;
-	CCheckBox TriggerTeammates;
-	CCheckBox TriggerFlashCheck;
-	CCheckBox TriggerSmokeCheck;
+	class CRifles
+	{
+	public:
+		CCheckBox Enabled;
+		CComboBox AimbotMode;
+		CCheckBox AutoFire;
+		CComboBox AutoFireMode;
+		CComboBox AutoFireTarget;
+		CKeyBind AutoFireKey;
+		CSlider FieldOfView;
+		CComboBox ReactionTime;
+		CSlider Recoil;
+		CSlider Smoothing;
+	};
+	CRifles rifle;
 
-	CGroupBox WeaponMainGroup;
-	CSlider   WeaponMainSpeed;
-	CSlider   WeaponMainFoV;
-	CSlider WeaponMainRecoil;
-	CComboBox WeaponMainHitbox;
-	CSlider WeaponMainAimtime;
-	CSlider WeaoponMainStartAimtime;
+	class CShotgun
+	{
+	public:
+		CCheckBox Enabled;
+		CComboBox AimbotMode;
+		CCheckBox AutoFire;
+		CComboBox AutoFireMode;
+		CComboBox AutoFireTarget;
+		CKeyBind AutoFireKey;
+		CSlider FieldOfView;
+		CComboBox ReactionTime;
+		CSlider Recoil;
+		CSlider Smoothing;
+	};
+	CShotgun shotgun;
 
-	CGroupBox WeaponPistGroup;
-	CSlider   WeaponPistSpeed;
-	CSlider   WeaponPistFoV;
-	CSlider WeaponPistRecoil;
-	CComboBox WeaponPistHitbox;
-	CSlider WeaponPistAimtime;
-	CSlider WeaoponPistStartAimtime;
+	class CSnipers
+	{
+	public:
+		CCheckBox Enabled;
+		CComboBox AimbotMode;
+		CCheckBox AutoFire;
+		CComboBox AutoFireMode;
+		CComboBox AutoFireTarget;
+		CKeyBind AutoFireKey;
+		CSlider FieldOfView;
+		CComboBox ReactionTime;
+		CSlider Recoil;
+		CSlider Smoothing;
+	};
+	CSnipers sniper;
 
-	CGroupBox WeaponSnipGroup;
-	CSlider   WeaponSnipSpeed;
-	CSlider   WeaponSnipFoV;
-	CSlider WeaponSnipRecoil;
-	CComboBox WeaponSnipHitbox;
-	CSlider WeaponSnipAimtime;
-	CSlider WeaoponSnipStartAimtime;
-
-	CGroupBox WeaponMpGroup;
-	CSlider   WeaponMpSpeed;
-	CSlider   WeaponMpFoV;
-	CSlider WeaponMpRecoil;
-	CComboBox WeaponMpHitbox;
-	CSlider WeaponMpAimtime;
-	CSlider WeaoponMpStartAimtime;
-
-	CGroupBox WeaponShotgunGroup;
-	CSlider   WeaponShotgunSpeed;
-	CSlider   WeaponShotgunFoV;
-	CSlider WeaponShotgunRecoil;
-	CComboBox WeaponShotgunHitbox;
-	CSlider WeaponShotgunAimtime;
-	CSlider WeaoponShotgunStartAimtime;
-
-	CGroupBox WeaponMGGroup;
-	CSlider   WeaponMGSpeed;
-	CSlider   WeaponMGFoV;
-	CSlider WeaponMGRecoil;
-	CComboBox WeaponMGHitbox;
-	CSlider WeaponMGAimtime;
-	CSlider WeaoponMGStartAimtime;
 };
 
 class CVisualTab : public CTab
@@ -173,66 +192,82 @@ class CVisualTab : public CTab
 public:
 	void Setup();
 
-	// Master Switch
-	CLabel ActiveLabel;
-	CCheckBox Active;
+	CGroupBox PlayerESP;
 
-	// Options Settings
-	CGroupBox OptionsGroup;
-	CComboBox OptionsBox;
-	CCheckBox OptionsName;
-	CCheckBox OptionsHealth;
-	CCheckBox OptionsWeapon;
-	CCheckBox OptionsArmor;
-	CCheckBox OptionsInfo;
-	CCheckBox OptionsMoney;
-	CCheckBox HitmarkerSound;
-	CCheckBox OptionsHelmet;
-	CCheckBox OptionsBarrels;
-	CCheckBox OptionsKit;
-	CCheckBox OptionsDefuse;
-	CComboBox OptionsGlow;
-	CComboBox OptionsChams;
-	CCheckBox OptionsSkeleton;
-	CCheckBox OptionsAimSpot;
-	CCheckBox OptionsCompRank;
-	CCheckBox lbyidicador;
+	class VisualPlayerControls
+	{
+	public:
+		CComboBox ActivationType;
+		CCheckBox EspTeammates;
+		CCheckBox EspBox;
+		CColorSelector BoxColor;
+		CComboBox BoxType;
+		CComboBox EspMode;
+		CCheckBox EspOutlines;
+		CCheckBox BoxFill;
+		CSlider BoxFillOpacity;
+		CCheckBox ShowHealth;
+		CCheckBox ShowHealthText;
+		CCheckBox ShowArmor;
+		CColorSelector ArmorColor;
+		CCheckBox ShowSkeletons;
+		CColorSelector SkeletonColor;
+		CCheckBox ShowHitbones;
+		CColorSelector HitbonesColor;
+		CCheckBox ShowPlayerNames;
+		CCheckBox ShowWeaponNames;
+		CCheckBox PlayerAmmo;
+		CCheckBox SnapLines;
+		CColorSelector SnapLinesColor;
+		CCheckBox DirectionArrow;
+		CColorSelector DirectionArrowColor;
+		CCheckBox Glow;
+		CColorSelector GlowColor;
+		CSlider GlowOpacity;
+		CCheckBox HitAngle;
+		CCheckBox Scoped;
+		CCheckBox Dormant;
+	};
+	VisualPlayerControls player;
 
-	// Filters Settings
-	CGroupBox FiltersGroup;
-	CCheckBox FiltersAll;
-	CCheckBox FiltersPlayers;
-	CCheckBox FiltersEnemiesOnly;
-	CCheckBox FiltersWeapons;
-	CCheckBox Filtersselfesp;
-	CCheckBox FiltersChickens;
-	CCheckBox FiltersC4;
+	CGroupBox ChamsGroup;
+	CComboBox PlayerChamType;
+	CCheckBox ChamsEnemies;
+	CColorSelector ChamsEnemies_Color;
+	CCheckBox ChamsEnemiesBehindWall;
+	CColorSelector ChamsEnemiesBehindWall_Color;
+	CCheckBox ChamsTeammates;
+	CColorSelector ChamsTeammates_Color;
+	CCheckBox ChamsTeammatesBehindWall;
+	CColorSelector ChamsTeammatesBehindWall_Color;
 
-	// Other Settings
-	CCheckBox SniperCrosshair;
-	CGroupBox OtherGroup;
-	CComboBox OtherCrosshair;
-	CCheckBox Clock;
-	CCheckBox Watermark;
-	CComboBox OtherRecoilCrosshair;
-	CCheckBox OtherHitmarker;
-	CCheckBox OtherRadar;
-	CCheckBox NightSky;
-	CCheckBox OtherNoVisualRecoil;
-	CCheckBox Grenades;
-	CCheckBox OtherNoSky; 
-	CCheckBox OtherNoFlash; 
-	CCheckBox DirectionArrow;
-	CCheckBox DisablePostProcess;
-	CSlider AmbientRed;
-	CSlider AmbientGreen;
-	CSlider AmbientBlue;
-	CCheckBox OtherNoScope;
-	CCheckBox OtherNoSmoke;
-	CCheckBox OtherAsusWalls;
-	CComboBox OtherNoHands;
-	CSlider OtherViewmodelFOV;
-	CSlider OtherFOV;
+	CGroupBox Effects;
+	CCheckBox RemoveParticles;
+	CCheckBox RemoveSmoke;
+	CCheckBox NoVisualRecoil;
+	CCheckBox RemoveWeaponScope;
+	CSlider FovChanger;
+	CCheckBox Thirdperson;
+	CKeyBind ThirdpersonToggle;
+	CComboBox VisualizedAngle;
+	CCheckBox NightMode;
+	CCheckBox DisablePostProcessing;
+	CCheckBox Hitmarkers;
+	CCheckBox DamageIndicators;
+	CCheckBox GhostChams;
+	CCheckBox SpreadCrosshair;
+	CCheckBox PenetrationReticle;
+	CCheckBox AntiAimLines;
+
+	CGroupBox OtherESP;
+
+	CCheckBox Weapons;
+	CColorSelector WeaponsColor;
+	CCheckBox DroppedWeapons;
+	CCheckBox DroppedC4;
+	CCheckBox DroppedDefuseKit;
+	CCheckBox BulletImpacts;
+	CColorSelector BulletImpactsColor;
 };
 
 class CMiscTab : public CTab
@@ -240,217 +275,105 @@ class CMiscTab : public CTab
 public:
 	void Setup();
 
-	CGroupBox Gloves;
-	CCheckBox EnableGloves;
-	CComboBox GloveSkin;
-	CComboBox GloveModel;
-	CButton GlovesApply;
+	CGroupBox Miscellaneous;
+	CCheckBox BunnyHop;
+	CCheckBox Autostrafe;
+	CComboBox AutoStrafeType;
+	CCheckBox ZHop;
+	CKeyBind ZHopKey;
+	CCheckBox CircleStrafe;
+	CCheckBox FakeWalk;
+	CKeyBind FakeWalkKey;
+	CCheckBox SpectatorList;
+	CCheckBox Blockbot;
+	CKeyBind BlockbotBind;
+	CCheckBox AutoAccept;
+	CCheckBox ClanChanger;
+	CCheckBox NameChanger;
+	CComboBox NameChangerType;
+	CCheckBox DeveloperConsole;
 
-	//settings
-	CComboBox ConfigBox;
+	CGroupBox SettingsGroup;
+	CLabel MenuKeyLabel;
+	CKeyBind MenuKey;
+	CColorSelector MenuColor;
+	CColorSelector CheckboxUncheckedColor;
+	CCheckBox AntiUntrusted;
+
+	CCheckBox FlagEnable;
+	CGroupBox FlagGroup;
+	CComboBox FlagActivationType;
+	CComboBox FlagType;
+	CSlider FlagLimit;
+	CCheckBox DisableFlagWhileShooting;
+
 	CGroupBox ConfigGroup;
-	CGroupBox Settings;
-	CButton SettingsSave;
-	CButton SettingsLoad;
+	//CComboBox SelectedConfig;
+	CListBox ConfigListBox;
+	CButton SaveConfig;
+	CButton LoadConfig;
+	CButton RemoveConfig;
+	CTextField NewConfigName;
+	CButton AddConfig;
 
-	// Other Settings
-	CGroupBox OtherGroup;
-	CCheckBox TrashTalk;
-	CComboBox OtherAutoJump;
-	CCheckBox OtherEdgeJump;
-	CComboBox OtherAutoStrafe;
-	CCheckBox OtherSafeMode;
-	CComboBox OtherChatSpam;
-	CCheckBox OtherTeamChat;
-	CSlider	  OtherChatDelay;
-	CCheckBox EnableBuyBot;
-	CComboBox BuyBot;
-	CGroupBox BuyBotGroup;
-	CComboBox BuyBotGrenades;
-	CCheckBox BuyBotKevlar;
-	CCheckBox BuyBotDefuser;
-	CKeyBind  OtherAirStuck;
-	CKeyBind  OtherLagSwitch;
-	CCheckBox OtherSpectators;
-	CCheckBox OtherThirdperson;
-	CCheckBox OtherAutoAccept;
-	//CCheckBox OtherAutoAccept;
-	CCheckBox OtherWalkbot;
-	CComboBox OtherClantag;
-
-	// Fake Lag Settings
-	CGroupBox FakeLagGroup;
-	CCheckBox FakeLagEnable;
-	CSlider   FakeLagChoke;
-	CSlider	  FakeLagSend;
-	CCheckBox ChokeRandomize;
-	CCheckBox SendRandomize;
-	//CCheckBox FakeLagWhileShooting;
+	CCheckBox Playerlist;
+	CLabel PlayerlistLabel;
 };
 
-class ColorsTab : public CTab
-{
-public:
-	void Setup();
-	// Box ESP Colour
-	CGroupBox ESPColorBox;
-	CSlider   RBoxCT;
-	CSlider   GBoxCT;
-	CSlider   BBoxCT;
-	CSlider   ABoxCT;
-	CSlider   RBoxCTV;
-	CSlider   GBoxCTV;
-	CSlider   BBoxCTV;
-	CSlider   ABoxCTV;
-};
-
-class CSkinchangerTab : public CTab
+class CPlayersTab : public CTab
 {
 public:
 	void Setup();
 
-	CLabel SkinActive;
-	CCheckBox SkinEnable;
-	CButton   SkinApply;
+	CListBox PlayerListControl;
 
-	CGroupBox KnifeGroup;
-	CComboBox KnifeModel;
-	CTextField KnifeSkin;
-	CCheckBox GG;
-
-	CGroupBox PistolGroup;
-	CComboBox GLOCKSkin;
-	CComboBox USPSSkin;
-	CComboBox DEAGLESkin;
-	CComboBox MAGNUMSkin;
-	CComboBox DUALSSkin;
-	CComboBox RevolverSkin;
-	CComboBox FIVESEVENSkin;
-	CComboBox TECNINESkin;
-	CComboBox P2000Skin;
-	CComboBox P250Skin;
-
-	CGroupBox MPGroup;
-	CComboBox MAC10Skin;
-	CComboBox P90Skin;
-	CComboBox UMP45Skin;
-	CComboBox BIZONSkin;
-	CComboBox MP7Skin;
-	CComboBox MP9Skin;
-
-	CGroupBox Riflegroup;
-	CComboBox M41SSkin;
-	CComboBox M4A4Skin;
-	CComboBox AK47Skin;
-	CComboBox AUGSkin;
-	CComboBox FAMASSkin;
-	CComboBox GALILSkin;
-	CComboBox SG553Skin;
-
-	CGroupBox MachinegunsGroup;
-	CComboBox NEGEVSkin;
-	CComboBox M249Skin;
-
-	CGroupBox Snipergroup;
-	CComboBox SCAR20Skin;
-	CComboBox G3SG1Skin;
-	CComboBox SSG08Skin;
-	CComboBox AWPSkin;
-
-	CGroupBox Shotgungroup;
-	CComboBox MAG7Skin;
-	CComboBox XM1014Skin;
-	CComboBox SAWEDOFFSkin;
-	CComboBox NOVASkin;
-
-	CGroupBox SkinsettingsGroup;
-	CCheckBox StatTrakEnable;
-	CTextField StatTrackAmount;
-	CTextField SkinName;
-	CTextField KnifeName;
+	CGroupBox PlayerSettingsGroup;
+	CCheckBox PlayerPriority;
+	CCheckBox PlayerFriendly;
+	CCheckBox PlayerPreferBody;
+	CCheckBox PlayerForcePitch;
+	CComboBox PlayerForcePitch_Pitch;
+	CCheckBox PlayerForceYaw;
+	CComboBox PlayerForceYaw_Yaw;
 };
 
-class CColorsTab : public CTab
+class CSkinsTab : public CTab
 {
 public:
 	void Setup();
-	CGroupBox ControlGroup;
-	CComboBox ControlColor;
 
-	// CT IS VISUAL ESP
-	CGroupBox CTVisESP;
-	CSlider CTVisESPR; //red
-	CSlider CTVisESPG; //green
-	CSlider CTVisESPB; //blue
+	CCheckBox SkinChangerEnabled;
+	CLabel EnabledLabel;
 
-					   // T IS VISUAL ESP
-	CGroupBox TVisESP;
-	CSlider TVisESPR; //red
-	CSlider TVisESPG; //green
-	CSlider TVisESPB; //blue
+	CGroupBox OverrideModelGroup;
+	CCheckBox OverrideKnife;
+	CComboBox KnifeSelection;
+	CButton KnifeFullUpdate;
+	CListBox KnifeSkin;
+	CSlider KnifeWear;
+	CTextField KnifeSeed;
+	CComboBox KnifeEntityQuality;
 
-					  // CT NOT VISIBLE ESP
-	CGroupBox CTInvisESP;
-	CSlider CTInvisESPR; //red
-	CSlider CTInvisESPG; //green
-	CSlider CTInvisESPB; //blue
-
-						 // T NOT VISIBLE ESP
-	CGroupBox TInvisESP;
-	CSlider TInvisESPR; //red
-	CSlider TInvisESPG; //green
-	CSlider TInvisESPB; //blue
-
-						// CT IS VISUAL CHAMS
-	CGroupBox CTVisChams;
-	CSlider CTVisChamsR; //red
-	CSlider CTVisChamsG; //green
-	CSlider CTVisChamsB; //blue
-
-						 // T IS VISUAL CHAMS
-	CGroupBox TVisChams;
-	CSlider TVisChamsR; //red
-	CSlider TVisChamsG; //green
-	CSlider TVisChamsB; //blue
-
-						// CT NOT VISIBLE CHAMS
-	CGroupBox CTInvisChams;
-	CSlider CTInvisChamsR; //red
-	CSlider CTInvisChamsG; //green
-	CSlider CTInvisChamsB; //blue
-
-						   // T NOT VISIBLE CHAMS
-	CGroupBox TInvisChams;
-	CSlider TInvisChamsR; //red
-	CSlider TInvisChamsG; //green
-	CSlider TInvisChamsB; //blue
+	CGroupBox SkinsGroup;
 };
 
-
-
-class AyyWareWindow : public CWindow
+class YetiWindow : public CWindow
 {
 public:
 	void Setup();
 
 	CRageBotTab RageBotTab;
-	CLegitBotTab LegitBotTab;
+	CLegitTab LegitTab;
 	CVisualTab VisualsTab;
 	CMiscTab MiscTab;
-	CColorsTab ColorsTab;
-	CSkinchangerTab SkinchangerTab;
-
-
-	CButton SaveButton;
-	CButton LoadButton;
-	CComboBox ConfigBox;
-	CButton UnloadButton;
+	CPlayersTab PlayersTab;
+	CSkinsTab SkinsTab;
 };
 
 namespace Menu
 {
 	void SetupMenu();
-	void DoUIFrame();
+	void DoFrame();
 
-	extern AyyWareWindow Window;
+	extern YetiWindow Window;
 };

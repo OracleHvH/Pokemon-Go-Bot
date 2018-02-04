@@ -1,6 +1,4 @@
-/*
-Syn's AyyWare Framework 2015
-*/
+
 
 #pragma once
 
@@ -28,6 +26,7 @@ namespace Offsets
 	// Virtual Method Table Indexes
 	namespace VMT
 	{
+
 		//CHL Client
 		extern DWORD CHL_GetAllClasses;
 
@@ -42,7 +41,6 @@ namespace Offsets
 		extern DWORD Engine_IsConnected;
 		extern DWORD Engine_IsInGame;
 		extern DWORD Engine_WorldToScreenMatrix;
-		extern DWORD Engine_GetNetChannelInfo;
 		extern DWORD Engine_ClientCmd_Unrestricted;
 
 		// Panels
@@ -97,10 +95,6 @@ namespace Offsets
 	namespace Functions
 	{
 		extern DWORD KeyValues_KeyValues;
-		extern DWORD KeyValues_LoadFromBuffer;
 		extern DWORD dwCalcPlayerView;
-		extern DWORD dwGetPlayerCompRank;
-		extern DWORD dwIsReady;
 	};
-
 };
