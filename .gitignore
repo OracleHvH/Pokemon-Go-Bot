@@ -45,3 +45,12 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+.vs/AYYWARE CSGO/v15/.suo
+.vs/AYYWARE CSGO/v15/Browse.VC.db
+.vs/AYYWARE CSGO/v15/Browse.VC.opendb
+*.obj
+*.pdb
+*.lib
+*.iobj
+Release/yeticheat.tlog/unsuccessfulbuild
+Release/yeticheat.tlog/yeticheat.lastbuildstate

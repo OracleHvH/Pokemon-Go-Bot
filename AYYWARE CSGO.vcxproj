@@ -44,6 +44,10 @@
     <OutDir>C:\V2\</OutDir>
     <IntDir>C:\V2\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>C:\V2\</OutDir>
+    <TargetName>V2</TargetName>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
@@ -73,6 +77,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <BuildLog>
+      <Path>C:\V2\$(MSBuildProjectName).log</Path>
+    </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Angle.h" />
